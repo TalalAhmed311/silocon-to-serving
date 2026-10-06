@@ -1,0 +1,13 @@
+# T0 checks: everything that runs on a laptop with no GPU.
+name: t0
+on: [push, pull_request]
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r site/requirements.txt
+      - run: python tools/check_links.py
+      - run: python tools/build_site.py

@@ -1,0 +1,61 @@
+site_name: Silicon-to-Serving
+site_description: From C pointers and SIMD to CUDA kernels and multi-cloud LLM serving.
+# docs/ is assembled by tools/build_site.py from the repo's Markdown (course/, laneB-cuda/, top-level docs).
+docs_dir: docs
+site_dir: build
+theme:
+  name: material
+  features: [navigation.sections, navigation.indexes, content.code.copy, search.highlight]
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Light mode}
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+nav:
+  - Home: README.md
+  - Phases:
+      - P0 Systems primer: course/P0-systems-primer/syllabus.md
+      - P1 Inference fundamentals: course/P1-inference-fundamentals/syllabus.md
+      - P2 Serving engines: course/P2-serving-engines/syllabus.md
+      - P3 Deployment and infra: course/P3-deployment-and-infra/syllabus.md
+      - P4 Multi-GPU and distributed: course/P4-multi-gpu-and-distributed/syllabus.md
+      - P5 CUDA deep dive: course/P5-cuda-deep-dive/syllabus.md
+      - P6 Engine internals: course/P6-engine-internals/syllabus.md
+      - Capstone: course/capstone/syllabus.md
+  - Lane B (CUDA on LeetGPU):
+      - Overview: laneB-cuda/README.md
+      - L1: laneB-cuda/L1-launch-and-indexing/syllabus.md
+      - L1 map: laneB-cuda/L1-launch-and-indexing/leetgpu-map.md
+      - L2: laneB-cuda/L2-memory-and-shared-memory/syllabus.md
+      - L2 map: laneB-cuda/L2-memory-and-shared-memory/leetgpu-map.md
+      - L3: laneB-cuda/L3-reductions-and-scans/syllabus.md
+      - L3 map: laneB-cuda/L3-reductions-and-scans/leetgpu-map.md
+      - L4: laneB-cuda/L4-fused-elementwise-and-norms/syllabus.md
+      - L4 map: laneB-cuda/L4-fused-elementwise-and-norms/leetgpu-map.md
+      - L5: laneB-cuda/L5-gemm-and-tensor-cores/syllabus.md
+      - L5 map: laneB-cuda/L5-gemm-and-tensor-cores/leetgpu-map.md
+      - L6: laneB-cuda/L6-attention-and-triton/syllabus.md
+      - L6 map: laneB-cuda/L6-attention-and-triton/leetgpu-map.md
+      - Electives: laneB-cuda/electives.md
+  - Platform: platform/README.md
+  - Animations: animations/README.md
+  - Reference:
+      - Sources: SOURCES.md
+      - Glossary: GLOSSARY.md
+      - Gaps: GAPS.md
+      - Progress: PROGRESS.md
+      - Stage 1 report: reports/stage1-source-index.md
