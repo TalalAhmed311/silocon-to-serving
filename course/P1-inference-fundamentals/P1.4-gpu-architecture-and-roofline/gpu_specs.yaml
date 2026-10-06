@@ -1,0 +1,107 @@
+# gpu_specs.yaml — the ONLY place GPU peak numbers enter the course. Every roofline, calculator and "% of peak"
+# column reads from here. Rules:
+#   * every entry has `source:` naming the document a number must be checked against
+#   * `status: UNVERIFIED` until someone opens that document and confirms each number (record the page/table);
+#     then change it to `status: VERIFIED (<doc>, <page or table>, <date>)`
+#   * tensor-core throughput is DENSE (no 2:4 sparsity). Datasheets often headline the sparse number (2x).
+#   * null = not supported on that GPU, or not yet looked up (see `todo:`)
+# The values below are the course author's recollection of NVIDIA's public datasheets. They were NOT verified
+# against the documents when written (the build environment could not reach nvidia.com). Verify before you cite.
+gpus:
+  - name: T4
+    arch: Turing
+    sm: "sm_75"
+    sm_count: 40
+    memory_gb: 16
+    memory_type: GDDR6
+    hbm_gbs: 320            # memory bandwidth, GB/s (field name kept as hbm_gbs for all memory types)
+    l2_mb: 4
+    fp32_tflops: 8.1
+    fp16_dense_tflops: 65   # FP16 tensor core (mixed precision)
+    bf16_dense_tflops: null # Turing has no bf16
+    fp8_dense_tflops: null
+    int8_dense_tops: 130
+    aws: g4dn.*
+    source: "NVIDIA T4 Tensor Core GPU datasheet; NVIDIA Turing architecture whitepaper"
+    status: UNVERIFIED
+  - name: A10G
+    arch: Ampere
+    sm: "sm_86"
+    sm_count: null
+    memory_gb: 24
+    memory_type: GDDR6
+    hbm_gbs: 600
+    l2_mb: null
+    fp32_tflops: null
+    fp16_dense_tflops: null
+    bf16_dense_tflops: null
+    fp8_dense_tflops: null
+    int8_dense_tops: null
+    aws: g5.*
+    source: "AWS EC2 G5 instance page (A10G is an AWS-specific variant; NVIDIA's A10 datasheet is close but not identical)"
+    status: UNVERIFIED
+    todo: "Look up A10G SM count and tensor throughput; do not substitute A10 numbers without saying so."
+  - name: L4
+    arch: Ada Lovelace
+    sm: "sm_89"
+    sm_count: 58
+    memory_gb: 24
+    memory_type: GDDR6
+    hbm_gbs: 300
+    l2_mb: 48
+    fp32_tflops: 30.3
+    fp16_dense_tflops: 121  # datasheet headline 242 is with sparsity
+    bf16_dense_tflops: 121
+    fp8_dense_tflops: 242
+    int8_dense_tops: 242
+    aws: g6.*
+    source: "NVIDIA L4 Tensor Core GPU datasheet; NVIDIA Ada Lovelace architecture whitepaper"
+    status: UNVERIFIED
+  - name: L40S
+    arch: Ada Lovelace
+    sm: "sm_89"
+    sm_count: 142
+    memory_gb: 48
+    memory_type: GDDR6
+    hbm_gbs: 864
+    l2_mb: 96
+    fp32_tflops: 91.6
+    fp16_dense_tflops: 362
+    bf16_dense_tflops: 362
+    fp8_dense_tflops: 733
+    int8_dense_tops: 733
+    aws: g6e.*
+    source: "NVIDIA L40S datasheet; NVIDIA Ada Lovelace architecture whitepaper"
+    status: UNVERIFIED
+  - name: A100-80GB-SXM
+    arch: Ampere
+    sm: "sm_80"
+    sm_count: 108
+    memory_gb: 80
+    memory_type: HBM2e
+    hbm_gbs: 2039
+    l2_mb: 40
+    fp32_tflops: 19.5
+    fp16_dense_tflops: 312
+    bf16_dense_tflops: 312
+    fp8_dense_tflops: null  # Ampere has no FP8 tensor cores
+    int8_dense_tops: 624
+    aws: p4de.24xlarge (p4d.24xlarge has the 40 GB A100)
+    source: "NVIDIA A100 Tensor Core GPU datasheet; NVIDIA A100 (Ampere) architecture whitepaper"
+    status: UNVERIFIED
+  - name: H100-SXM
+    arch: Hopper
+    sm: "sm_90"
+    sm_count: 132
+    memory_gb: 80
+    memory_type: HBM3
+    hbm_gbs: 3350
+    l2_mb: 50
+    fp32_tflops: 67
+    fp16_dense_tflops: 989
+    bf16_dense_tflops: 989
+    fp8_dense_tflops: 1979
+    int8_dense_tops: 1979
+    aws: p5.48xlarge
+    source: "NVIDIA H100 Tensor Core GPU datasheet; NVIDIA H100 (Hopper) architecture whitepaper"
+    status: UNVERIFIED

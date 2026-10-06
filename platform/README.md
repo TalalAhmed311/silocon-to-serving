@@ -18,7 +18,8 @@ flowchart TB
 
 | Path | Project | Phase | Tier |
 |---|---|---|---|
-| `tools/capacity/` | D3 capacity calculator | P1 | T0 |
+| `capacity/` | D3 capacity calculator | P1 | T0 |
+| `mockllm/` | OpenAI-compatible fake server with a continuous-batching cost model (used by P1.3, #4, #6, P3) | P1 | T0 |
 | `loadgen/` | #4 continuous-batching load test | P2 | T0/T2 |
 | `bakeoff/` | #7 quantized serving bakeoff | P2 | T2 |
 | `specdec/` | #10 speculative decoding prototype | P2 | T2 |

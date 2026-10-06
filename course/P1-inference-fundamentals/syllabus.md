@@ -114,6 +114,6 @@
 
 **Bench.** None. The output table is the deliverable: `model | GPU | dtype | weights GB | KV GB/1k tok | max seqs @ ctx | decode ceiling tok/s @ batch 1/8/32`.
 
-**Lives in.** `platform/tools/capacity/` (first code in the platform repo).
+**Lives in.** `platform/capacity/`.
 
 **Sources.** handbook `calculating-gpu-memory-for-llms.md` · Silicon to Scale ch 11 · kipply.
