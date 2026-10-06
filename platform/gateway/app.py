@@ -32,7 +32,7 @@ class Gateway:
     def __init__(self, cfg: Config, clock=time.monotonic):
         self.cfg = cfg
         self.router = Router(cfg.backends, cfg.routing)
-        self.tenants = {t.key_sha256: t for t in cfg.tenants}
+        self.tenants = {h: t for t in cfg.tenants for h in (t.key_sha256, *t.previous_key_sha256)}
         self.buckets = {t.name: TokenBucket(t.rps, t.burst, clock) for t in cfg.tenants}
         self.budgets = {t.name: TokenBudget(t.tokens_per_window, t.window_s, clock) for t in cfg.tenants}
         self.retry_budget = RetryBudget(cfg.retry_budget_ratio)

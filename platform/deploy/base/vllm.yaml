@@ -14,7 +14,7 @@ spec:
     matchLabels: { app: vllm }
   template:
     metadata:
-      labels: { app: vllm }
+      labels: { app: vllm, s2s/role: backend }
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"

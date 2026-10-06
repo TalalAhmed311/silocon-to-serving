@@ -1,0 +1,11 @@
+# Gateway config for kind: the mock backend. Tenant key = "dev-key-1" (a dev-only key; never reuse it).
+routing: least_outstanding
+max_attempts: 3
+retry_budget_ratio: 0.2
+backends:
+  - { name: mockllm, url: "http://mockllm.s2s:8001", models: ["mock-llama-8b"] }
+tenants:
+  - name: team-a
+    key_sha256: "REPLACE: python -c \"import hashlib;print(hashlib.sha256(b'dev-key-1').hexdigest())\""
+    rps: 50
+    burst: 100

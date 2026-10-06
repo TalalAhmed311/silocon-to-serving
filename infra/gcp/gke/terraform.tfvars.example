@@ -1,0 +1,5 @@
+project_id              = "REPLACE-your-project"
+owner                   = "yourname"
+billing_account         = "XXXXXX-XXXXXX-XXXXXX"
+master_authorized_cidrs = ["203.0.113.10/32"] # your IP: curl -s https://checkip.amazonaws.com
+# gpu_spot = true

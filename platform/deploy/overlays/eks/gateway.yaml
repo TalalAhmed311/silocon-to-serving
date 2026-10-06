@@ -1,0 +1,12 @@
+# Gateway config for EKS: the vLLM backend. Put only key HASHES here; generate keys with platform/tenancy/keys.py.
+routing: least_outstanding
+max_attempts: 3
+retry_budget_ratio: 0.2
+backends:
+  - { name: vllm, url: "http://vllm.s2s:8000", models: ["llama-8b-instruct"], api_key_env: S2S_API_KEY }
+tenants:
+  - name: team-a
+    key_sha256: "REPLACE"
+    rps: 5
+    burst: 10
+    tokens_per_window: 2000000

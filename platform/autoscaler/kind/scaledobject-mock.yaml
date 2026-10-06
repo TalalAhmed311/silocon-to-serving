@@ -1,0 +1,25 @@
+# T0: the #3 ScaledObject pointed at mockllm on kind (it exports the same vllm:* gauges).
+# Short windows so the whole up → down → zero cycle fits in ~10 minutes. Not for production.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: mockllm
+  namespace: s2s
+spec:
+  scaleTargetRef: { name: mockllm }
+  minReplicaCount: 0
+  maxReplicaCount: 4
+  cooldownPeriod: 120
+  pollingInterval: 10
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:   { stabilizationWindowSeconds: 0,  policies: [{ type: Pods, value: 2, periodSeconds: 30 }] }
+        scaleDown: { stabilizationWindowSeconds: 60, policies: [{ type: Pods, value: 1, periodSeconds: 30 }] }
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kps-kube-prometheus-stack-prometheus.monitoring:9090
+        query: sum(vllm:num_requests_running{namespace="s2s"}) + sum(vllm:num_requests_waiting{namespace="s2s"})
+        threshold: "8"          # mock MAX_NUM_SEQS=16; target half of it
+        activationThreshold: "0"

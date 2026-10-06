@@ -11,7 +11,7 @@ spec:
     matchLabels: { app: mockllm }
   template:
     metadata:
-      labels: { app: mockllm }
+      labels: { app: mockllm, s2s/role: backend }
     spec:
       terminationGracePeriodSeconds: 60
       nodeSelector: { s2s/pool: gpu }

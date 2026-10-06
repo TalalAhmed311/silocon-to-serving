@@ -1,0 +1,14 @@
+{
+  "_comment": "#8 sandbox demo: a deny-list seccomp profile layered on the runtime default. Blocks syscalls an inference server never needs (ptrace, mount, kernel modules, kexec, bpf, keyctl, unshare of user ns). Load as a localhost profile (kubelet seccomp dir) or `docker run --security-opt seccomp=seccomp-inference.json`. For untrusted code execution (tool use, code interpreter) use gVisor (runsc RuntimeClass) or Firecracker microVMs instead: seccomp narrows the kernel surface, it is not an isolation boundary.",
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "syscalls": [
+    {
+      "names": ["ptrace", "process_vm_readv", "process_vm_writev", "mount", "umount2", "pivot_root",
+                "init_module", "finit_module", "delete_module", "kexec_load", "kexec_file_load",
+                "bpf", "perf_event_open", "keyctl", "add_key", "request_key", "unshare", "setns",
+                "open_by_handle_at", "userfaultfd", "reboot", "swapon", "swapoff", "acct"],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1
+    }
+  ]
+}

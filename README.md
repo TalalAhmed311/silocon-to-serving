@@ -14,7 +14,7 @@ Two lanes run in parallel:
 | **A** | Phases + portfolio projects | ≈11 h/week |
 | **B** | CUDA C++ kernels on [LeetGPU](https://leetgpu.com/challenges) | 3–4 problems/week in P0–P4, daily from P5 |
 
-> **Build status: Stage 2 — syllabus complete, awaiting review.** Nothing below the syllabus level is built yet. See [Where things stand](#where-things-stand).
+> **Build status: Stage 4 in progress.** P0–P3 and Lane B L1–L3 are built (lessons, examples, exercises with tests, benches, AWS/GCP guides). P4–P6 and the Capstone are next. Hardware runs are marked `TODO(run-on: …)`. See [Where things stand](#where-things-stand).
 
 ## Course map
 
@@ -74,9 +74,9 @@ reports/          stage and phase reports
 | Stage | Status |
 |---|---|
 | 1. Source index | **Done.** See [SOURCES.md](SOURCES.md) and [reports/stage1-source-index.md](reports/stage1-source-index.md) |
-| 2. Syllabus | **Done. Waiting for your review.** |
-| 3. Pilot module (P0.1, end to end) | Not started; begins after review |
-| 4. Build-out (P0 → Capstone, Lane B alongside) | Not started |
+| 2. Syllabus | **Done.** Approved with defaults: book Path 2 order, GKE as the second cloud, Ray on EKS for P4.3 |
+| 3. Pilot module (P0.1, end to end) | **Done** |
+| 4. Build-out (P0 → Capstone, Lane B alongside) | **In progress:** P0–P3 + L1–L3 built; P4, P5 + L4–L6, P6, Capstone next |
 | 5. QA and delivery | Not started |
 
 ## Quickstart

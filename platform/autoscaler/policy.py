@@ -45,7 +45,7 @@ def step(state: State, t: float, work: float, p: Policy) -> int:
         stable = max(hd for _, hd in state.history)
         new = max(stable, state.replicas - p.max_down_per_step) if stable < state.replicas else state.replicas
     if new == 0 and t - state.last_nonzero_work_t < p.cooldown_s:
-        new = max(1, min(state.replicas, 1))                    # keep one warm replica until the cooldown passes
+        new = 1                                                 # keep one warm replica until the cooldown passes
     new = max(p.min_replicas, min(p.max_replicas, new))
     state.replicas = new
     return new

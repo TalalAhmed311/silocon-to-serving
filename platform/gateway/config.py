@@ -27,6 +27,7 @@ class Backend:
 class Tenant:
     name: str
     key_sha256: str                 # store hashes, not keys: a leaked config doesn't leak credentials
+    previous_key_sha256: list[str] = field(default_factory=list)   # still accepted during a key rotation (P3.8)
     rps: float = 5.0
     burst: float = 10.0
     tokens_per_window: int = 1_000_000
