@@ -1,0 +1,22 @@
+# NVIDIA GPU Operator v26.7.1 values for EKS AL2023 NVIDIA nodes (drivers + container toolkit come with the AMI).
+# Keys follow the operator chart's values.yaml as the author understands it — UNVERIFIED; check
+# deployments/gpu-operator/values.yaml in NVIDIA/gpu-operator@cc6fd600 and adjust.
+driver:
+  enabled: false        # the AMI ships the driver
+toolkit:
+  enabled: false        # the AMI ships nvidia-container-toolkit
+devicePlugin:
+  enabled: true         # advertises nvidia.com/gpu to the kubelet
+dcgmExporter:
+  enabled: true         # GPU metrics for Prometheus (P3.5)
+  serviceMonitor:
+    enabled: true
+gfd:
+  enabled: true         # GPU Feature Discovery: node labels like nvidia.com/gpu.product, .memory, .compute.major
+migManager:
+  enabled: false        # P4.4 turns this on for A100/H100 nodes
+daemonsets:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule

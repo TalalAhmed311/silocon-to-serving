@@ -1,0 +1,22 @@
+# #2 / #13 cost and drift rules. gateway_tokens_total comes from platform/gateway (per tenant/model/kind).
+groups:
+  - name: s2s-cost
+    rules:
+      - record: s2s:tenant_tokens:rate1h
+        expr: sum by (tenant) (rate(gateway_tokens_total[1h]))
+      - alert: TenantTokenSpike
+        # A tenant's last-hour token rate is >3x its rate over the previous day (and non-trivial): cost spike or abuse.
+        expr: |
+          sum by (tenant) (rate(gateway_tokens_total[1h])) > 3 * sum by (tenant) (rate(gateway_tokens_total[1d] offset 1h))
+          and sum by (tenant) (rate(gateway_tokens_total[1h])) > 100
+        for: 15m
+        labels: { severity: ticket }
+        annotations: { summary: "Token spike for tenant {{ $labels.tenant }}" }
+      - alert: OutputLengthDrift
+        # Mean completion length moved >50% vs the previous week: model/prompt/template change or a misbehaving client.
+        expr: |
+          (sum(rate(gateway_tokens_total{kind="completion"}[6h])) / sum(rate(gateway_requests_total{outcome="ok"}[6h])))
+          > 1.5 * (sum(rate(gateway_tokens_total{kind="completion"}[6h] offset 7d)) / sum(rate(gateway_requests_total{outcome="ok"}[6h] offset 7d)))
+        for: 1h
+        labels: { severity: ticket }
+        annotations: { summary: "Mean output length drifted >50% week over week" }

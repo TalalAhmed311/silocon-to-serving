@@ -25,6 +25,7 @@ from .config import Config, key_hash
 from .ratelimit import TokenBucket, TokenBudget
 from .retry import RetryBudget, backoff_s, should_retry
 from .router import Router
+from .tracing import inject, tracer
 
 
 class Gateway:
@@ -39,7 +40,7 @@ class Gateway:
         self.rng = random.Random(0)
         r = self.registry = CollectorRegistry()
         self.m_req = Counter("gateway_requests", "Requests", ["tenant", "model", "backend", "outcome"], registry=r)
-        self.m_tok = Counter("gateway_tokens", "LLM tokens", ["tenant", "model", "kind"], registry=r)
+        self.m_tok = Counter("gateway_tokens", "LLM tokens", ["tenant", "model", "backend", "kind"], registry=r)
         self.m_lat = Histogram("gateway_request_seconds", "End-to-end latency through the gateway", ["backend"], registry=r)
         self.m_ttft = Histogram("gateway_ttft_seconds", "Time to first byte from the backend", ["backend"], registry=r)
         self.m_retry = Counter("gateway_retries", "Retries and fallbacks", ["reason"], registry=r)
@@ -63,9 +64,18 @@ class Gateway:
 
     # ---- proxying ----
     async def forward(self, path: str, req: Request):
+        with tracer().start_as_current_span("gateway.request") as span:
+            resp = await self._forward(path, req, span)
+            span.set_attribute("http.status_code", getattr(resp, "status_code", 200))
+            return resp
+
+    async def _forward(self, path: str, req: Request, span):
         tenant = self.tenant_for(req)
         body = await req.json()
         model = body.get("model", "")
+        span.set_attribute("s2s.tenant", tenant.name)
+        span.set_attribute("s2s.model", model)
+        span.set_attribute("s2s.stream", bool(body.get("stream")))
         if "*" not in tenant.models and model not in tenant.models:
             raise HTTPException(403, f"tenant {tenant.name} may not use model {model}")
         if not self.buckets[tenant.name].allow():
@@ -84,7 +94,8 @@ class Gateway:
         return await (self._stream if body.get("stream") else self._unary)(path, body, tenant, model, backends)
 
     def _headers(self, b):
-        return {"Authorization": f"Bearer {b.api_key}"} if b.api_key else {}
+        h = {"Authorization": f"Bearer {b.api_key}"} if b.api_key else {}
+        return inject(h)          # W3C traceparent: backend-side spans join this trace
 
     async def _unary(self, path, body, tenant, model, backends):
         attempt, last = 0, None
@@ -92,19 +103,27 @@ class Gateway:
             t0 = time.perf_counter()
             self.router.acquire(b)
             self.m_inflight.labels(b.name).inc()
-            try:
-                r = await self.client.post(f"{b.url}{path}", json=body, headers=self._headers(b), timeout=b.timeout_s)
-                status, exc = r.status_code, None
-            except httpx.HTTPError as e:
-                r, status, exc = None, None, e
-            finally:
-                self.router.release(b)
-                self.m_inflight.labels(b.name).dec()
+            with tracer().start_as_current_span("gateway.backend_attempt") as aspan:
+                aspan.set_attribute("s2s.backend", b.name)
+                aspan.set_attribute("s2s.attempt", attempt)
+                try:
+                    r = await self.client.post(f"{b.url}{path}", json=body, headers=self._headers(b), timeout=b.timeout_s)
+                    status, exc = r.status_code, None
+                except httpx.HTTPError as e:
+                    r, status, exc = None, None, e
+                finally:
+                    self.router.release(b)
+                    self.m_inflight.labels(b.name).dec()
+                aspan.set_attribute("http.status_code", status or 0)
+                if r is not None and status == 200:
+                    u = r.json().get("usage", {})
+                    aspan.set_attribute("s2s.prompt_tokens", int(u.get("prompt_tokens", 0)))
+                    aspan.set_attribute("s2s.completion_tokens", int(u.get("completion_tokens", 0)))
             if r is not None and status == 200:
                 self.router.mark(b, True)
                 self.m_lat.labels(b.name).observe(time.perf_counter() - t0)
                 usage = r.json().get("usage", {})
-                self._bill(tenant, model, usage)
+                self._bill(tenant, model, usage, b.name)
                 self.m_req.labels(tenant.name, model, b.name, "ok").inc()
                 return JSONResponse(r.json())
             last = (status, str(exc) if exc else (r.text[:200] if r is not None else ""))
@@ -147,7 +166,7 @@ class Gateway:
                                     usage = ev.get("usage") or usage
                                 yield line + "\n\n"
                             gw.router.mark(b, True)
-                            gw._bill(tenant, model, usage or {})
+                            gw._bill(tenant, model, usage or {}, b.name)
                             gw.m_req.labels(tenant.name, model, b.name, "ok").inc()
                             gw.m_lat.labels(b.name).observe(time.perf_counter() - t0)
                             return
@@ -162,7 +181,7 @@ class Gateway:
                     # Mid-stream failure: we cannot retry transparently. Tell the client explicitly and stop.
                     err = {"error": {"message": "upstream stream interrupted", "type": "upstream_interrupted"}}
                     yield f"data: {json.dumps(err)}\n\n"
-                    gw._bill(tenant, model, usage or {})
+                    gw._bill(tenant, model, usage or {}, b.name)
                     return
                 if not should_retry(status, exc, started, attempt, gw.cfg.max_attempts, gw.retry_budget):
                     break
@@ -173,11 +192,11 @@ class Gateway:
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
-    def _bill(self, tenant, model, usage: dict) -> None:
+    def _bill(self, tenant, model, usage: dict, backend: str) -> None:
         p, c = int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
         self.budgets[tenant.name].commit(p + c)
-        self.m_tok.labels(tenant.name, model, "prompt").inc(p)
-        self.m_tok.labels(tenant.name, model, "completion").inc(c)
+        self.m_tok.labels(tenant.name, model, backend, "prompt").inc(p)
+        self.m_tok.labels(tenant.name, model, backend, "completion").inc(c)
 
 
 def build_app(cfg: Config, clock=time.monotonic) -> FastAPI:

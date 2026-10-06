@@ -1,0 +1,25 @@
+{
+  "title": "S2S — LLM serving overview",
+  "uid": "s2s-llm-serving",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [ { "name": "tenant", "type": "query", "query": "label_values(gateway_requests_total, tenant)", "includeAll": true, "multi": true, "datasource": { "type": "prometheus", "uid": "${datasource}" } } ] },
+  "panels": [
+    { "type": "timeseries", "title": "p90 TTFT (s)", "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "targets": [ { "expr": "s2s:ttft_seconds:p90_5m" } ] },
+    { "type": "timeseries", "title": "p90 ITL (s)", "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "targets": [ { "expr": "s2s:itl_seconds:p90_5m" } ] },
+    { "type": "timeseries", "title": "Requests running / waiting", "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "targets": [ { "expr": "sum(vllm:num_requests_running)", "legendFormat": "running" }, { "expr": "sum(vllm:num_requests_waiting)", "legendFormat": "waiting" } ] },
+    { "type": "timeseries", "title": "KV cache usage", "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "targets": [ { "expr": "max by (pod) (vllm:kv_cache_usage_perc)" } ], "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } } },
+    { "type": "timeseries", "title": "GPU utilization (DCGM)", "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "targets": [ { "expr": "avg by (Hostname, gpu) (DCGM_FI_DEV_GPU_UTIL)" } ] },
+    { "type": "timeseries", "title": "Tokens/s by tenant", "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "targets": [ { "expr": "sum by (tenant) (rate(gateway_tokens_total{tenant=~\"$tenant\"}[5m]))" } ] },
+    { "type": "timeseries", "title": "Error budget burn (1h, x budget)", "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [ { "expr": "s2s:ttft_slo_errors:ratio_rate1h / 0.01" } ] },
+    { "type": "timeseries", "title": "$ per 1M output tokens (from #2 cost exporter)", "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [ { "expr": "s2s_cost_usd_per_million_tokens" } ] }
+  ]
+}

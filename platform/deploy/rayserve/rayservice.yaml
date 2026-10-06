@@ -1,0 +1,38 @@
+# KubeRay RayService for rayserve/app.py. Requires the KubeRay operator (install per Ray's docs at ray-2.59.0).
+# Image: a Ray image with vLLM installed (build one FROM rayproject/ray:2.59.0-py312-gpu — tag UNVERIFIED).
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: llm
+  namespace: s2s
+spec:
+  serveConfigV2: |
+    applications:
+      - name: llm
+        import_path: rayserve.app:app
+        route_prefix: /
+  rayClusterConfig:
+    headGroupSpec:
+      rayStartParams: { dashboard-host: "0.0.0.0", num-gpus: "0" }
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: REGISTRY/s2s-ray-vllm:2.59.0
+              resources: { requests: { cpu: "2", memory: 8Gi }, limits: { memory: 8Gi } }
+    workerGroupSpecs:
+      - groupName: gpu
+        replicas: 1
+        minReplicas: 0
+        maxReplicas: 2
+        rayStartParams: {}
+        template:
+          spec:
+            tolerations: [{ key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }]
+            nodeSelector: { s2s/pool: gpu }
+            containers:
+              - name: ray-worker
+                image: REGISTRY/s2s-ray-vllm:2.59.0
+                resources: { requests: { cpu: "3", memory: 12Gi, nvidia.com/gpu: 1 }, limits: { memory: 14Gi, nvidia.com/gpu: 1 } }
+                volumeMounts: [{ name: models, mountPath: /models, readOnly: true }]
+            volumes: [{ name: models, persistentVolumeClaim: { claimName: models } }]

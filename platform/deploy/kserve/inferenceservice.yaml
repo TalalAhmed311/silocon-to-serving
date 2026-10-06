@@ -1,0 +1,24 @@
+# KServe InferenceService using KServe's Hugging Face / vLLM serving runtime (KServe v0.21.0).
+# Field names follow KServe's v1beta1 API as the author understands it — UNVERIFIED; check
+# docs/ and config/ in kserve/kserve@fddb8fef for the current runtime name and args.
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: llm
+  namespace: s2s
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment   # plain Deployment + Service (no Knative) for a first pass
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 2
+    tolerations:
+      - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+    nodeSelector: { s2s/pool: gpu }
+    model:
+      modelFormat: { name: huggingface }
+      storageUri: pvc://models/model                  # the same `models` PVC as base/vllm.yaml (P3.7)
+      args: ["--max-model-len=8192", "--gpu-memory-utilization=0.90"]
+      resources:
+        requests: { cpu: "3", memory: 12Gi, nvidia.com/gpu: "1" }
+        limits: { memory: 14Gi, nvidia.com/gpu: "1" }

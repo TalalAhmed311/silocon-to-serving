@@ -1,0 +1,22 @@
+# Scrape targets for #13: vLLM pods, the gateway, mockllm (kind). DCGM exporter is scraped via the GPU Operator's
+# ServiceMonitor (gpu-operator-values.yaml: dcgmExporter.serviceMonitor.enabled).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata: { name: vllm, namespace: s2s }
+spec:
+  selector: { matchLabels: { app: vllm } }
+  podMetricsEndpoints: [{ port: http, path: /metrics, interval: 15s }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata: { name: mockllm, namespace: s2s }
+spec:
+  selector: { matchLabels: { app: mockllm } }
+  podMetricsEndpoints: [{ port: http, path: /metrics, interval: 15s }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata: { name: gateway, namespace: s2s }
+spec:
+  selector: { matchLabels: { app: gateway } }
+  podMetricsEndpoints: [{ port: http, path: /metrics, interval: 15s }]

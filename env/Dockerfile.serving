@@ -1,0 +1,22 @@
+# Dockerfile.serving — slim vLLM serving image for P3 (K8s). Weights are NOT baked in (P3.7 loads them at runtime).
+# Build: docker build -f env/Dockerfile.serving -t <registry>/s2s-vllm:0.31.0 .
+# Notes:
+#  * Multi-stage: build the venv in a full image, copy only the venv into a runtime image (smaller pulls = faster cold
+#    starts, P3.6). The vLLM wheel already bundles the CUDA runtime libs it needs; the runtime image only needs a
+#    compatible host driver (mounted by the NVIDIA container toolkit).
+#  * Non-root, read-only-root-friendly: caches go to /tmp or a mounted volume.
+#  * Alternative: start FROM the official vllm/vllm-openai:<tag> image and only add your config — simpler, larger.
+FROM python:3.12-slim AS build
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
+COPY env/requirements-serving.txt /tmp/req.txt
+RUN uv venv /opt/venv && uv pip install --no-cache -p /opt/venv -r /tmp/req.txt
+
+FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 curl && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 10001 -m vllm
+COPY --from=build /opt/venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH HF_HOME=/models/.hf VLLM_NO_USAGE_STATS=1 XDG_CACHE_HOME=/tmp/.cache
+USER 10001
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=600s CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+ENTRYPOINT ["vllm", "serve"]

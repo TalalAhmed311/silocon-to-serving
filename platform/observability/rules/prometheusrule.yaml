@@ -1,0 +1,7 @@
+# For the cluster: the same groups as slo.yaml/cost.yaml as a PrometheusRule CR. Regenerate with:
+#   uv run python platform/observability/make_prometheusrule.py > platform/observability/rules/prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: { name: s2s, namespace: monitoring }
+spec:
+  groups: []   # filled by make_prometheusrule.py

@@ -1,0 +1,35 @@
+# #3: KEDA ScaledObject — scale the vLLM Deployment on queue depth + in-flight work, not on CPU/GPU utilization.
+# Signal: sum(vllm:num_requests_running + vllm:num_requests_waiting) across pods = total concurrent work.
+# Target: `threshold` concurrent requests per replica (pick it from #4: a bit below the per-replica knee concurrency).
+# KEDA v2.21.0 (SOURCES.md). Trigger field names per KEDA's Prometheus scaler docs — UNVERIFIED at that version.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm
+  namespace: s2s
+spec:
+  scaleTargetRef: { name: vllm }
+  minReplicaCount: 0            # scale to zero when idle (cold starts are P3.6's other half)
+  maxReplicaCount: 4
+  idleReplicaCount: 0
+  cooldownPeriod: 600           # seconds of no demand before scaling to zero: GPU nodes are slow to come back
+  pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:   { stabilizationWindowSeconds: 0,   policies: [{ type: Pods, value: 2, periodSeconds: 60 }] }
+        scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Pods, value: 1, periodSeconds: 120 }] }
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kps-kube-prometheus-stack-prometheus.monitoring:9090
+        query: sum(vllm:num_requests_running{namespace="s2s"}) + sum(vllm:num_requests_waiting{namespace="s2s"})
+        threshold: "24"
+        activationThreshold: "0"   # any waiting request wakes the deployment from zero
+    # From zero there is no vLLM pod exporting metrics: the gateway's queue/inflight metric must carry the signal.
+    - type: prometheus
+      metadata:
+        serverAddress: http://kps-kube-prometheus-stack-prometheus.monitoring:9090
+        query: sum(gateway_inflight{backend=~"vllm.*"})
+        threshold: "24"
+        activationThreshold: "0"

@@ -1,0 +1,9 @@
+# kind cluster for T0 K8s labs (no GPU). `kind create cluster --name s2s --config platform/deploy/kind/kind-config.yaml`
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+    labels: { s2s/pool: system }
+  - role: worker
+    labels: { s2s/pool: gpu }   # pretend GPU pool: mockllm pods tolerate the same taint as real GPU pods
