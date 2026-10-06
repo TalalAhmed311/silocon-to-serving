@@ -1,0 +1,9 @@
+# cp terraform.tfvars.example terraform.tfvars   (terraform.tfvars is git-ignored)
+owner              = "your-handle"
+budget_email       = "you@example.com"
+region             = "us-east-1"
+instance_type      = "g6.xlarge"
+use_spot           = false
+idle_minutes       = 30
+monthly_budget_usd = 100
+# weights_bucket   = "my-s2s-weights"

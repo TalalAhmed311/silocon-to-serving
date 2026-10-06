@@ -1,0 +1,11 @@
+# concept: [vllm flag, sglang flag] — UNVERIFIED until test_flag_map.py passes against captured --help output.
+model_path: ["--model", "--model-path"]
+api_key: ["--api-key", "--api-key"]
+memory_fraction: ["--gpu-memory-utilization", "--mem-fraction-static"]
+context_length: ["--max-model-len", "--context-length"]
+max_running: ["--max-num-seqs", "--max-running-requests"]
+prefill_chunk: ["--max-num-batched-tokens", "--chunked-prefill-size"]
+tensor_parallel: ["--tensor-parallel-size", "--tp-size"]
+kv_dtype: ["--kv-cache-dtype", "--kv-cache-dtype"]
+no_cuda_graph: ["--enforce-eager", "--disable-cuda-graph"]
+prefix_cache_off: ["--no-enable-prefix-caching", "--disable-radix-cache"]

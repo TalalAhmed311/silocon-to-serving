@@ -1,0 +1,4 @@
+def fibonacci(n):\n    """Return the n-th Fibonacci number."""\n
+Rewrite this function to use a for loop instead of recursion:\ndef total(xs):\n    return 0 if not xs else xs[0] + total(xs[1:])
+Add type hints to: def merge(a, b):\n    out = []\n    i = j = 0\n    while i < len(a) and j < len(b):
+Complete the JSON: {"name": "silicon-to-serving", "phases": ["P0", "P1", "P2",

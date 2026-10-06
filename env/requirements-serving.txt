@@ -1,0 +1,9 @@
+# Serving environment for P2 (T2: needs an NVIDIA GPU). Versions match the tags pinned in SOURCES.md.
+# vLLM wheels bundle a specific PyTorch/CUDA build; install into a fresh venv:
+#   uv venv .venv-serving && uv pip install -p .venv-serving -r env/requirements-serving.txt
+vllm==0.31.0
+guidellm==0.8.0
+huggingface_hub>=0.25
+httpx>=0.28
+numpy>=2.1
+pyyaml>=6.0

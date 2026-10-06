@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Speculative decoding</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Speculative decoding</h1>
+<p class="sub">P2.6 / P6.5 — a small draft model proposes k tokens; the target model scores all k+1 positions in ONE forward pass; tokens are accepted left to right with probability min(1, p/q); the first rejection is resampled from the residual. Output distribution = the target's.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Speculative decoding"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="legend"><span><i style="background:var(--cell2)"></i>draft proposal</span><span><i style="background:var(--cell4)"></i>accepted</span><span><i style="background:var(--cell3)"></i>rejected</span><span><i style="background:var(--accent)"></i>target's own token</span></div>
+<script>
+// Illustrative probabilities (not from a real model): q = draft prob of its proposal, p = target prob of that token.
+const ROUNDS = [
+  {draft:["The","cat","sat","on"], q:[0.9,0.7,0.6,0.5], p:[0.95,0.8,0.3,0.6], u:[0.2,0.5,0.7,0.1], fix:"slept"},
+  {draft:["the","mat","."," It"], q:[0.8,0.6,0.9,0.4], p:[0.9,0.7,0.95,0.5], u:[0.4,0.3,0.6,0.2], bonus:" was"},
+];
+const STEPS = [];
+let ctx = ["<s>"];
+ROUNDS.forEach((R, ri) => {
+  STEPS.push({ctx:[...ctx], R, stage:"draft", i:-1, caption:`Round ${ri + 1}. The <b>draft</b> model (small, fast) autoregressively proposes k = ${R.draft.length} tokens: "${R.draft.join(" ")}". That costs k cheap forward passes.`});
+  STEPS.push({ctx:[...ctx], R, stage:"verify", i:-1, caption:"The <b>target</b> model scores the context plus all k proposals in <b>one</b> forward pass, a k+1-token mini-prefill. Decode is memory-bound, so this costs about the same as generating a single token."});
+  let accepted = 0, rejected = false;
+  for (let i = 0; i < R.draft.length; i++) {
+    const ratio = Math.min(1, R.p[i] / R.q[i]), ok = R.u[i] < ratio;
+    STEPS.push({ctx:[...ctx], R, stage:"check", i, ok, acc:accepted, caption:`Token ${i + 1} "${R.draft[i]}": accept with probability min(1, p/q) = min(1, ${R.p[i]}/${R.q[i]}) = ${ratio.toFixed(2)}. The draw u = ${R.u[i]}, so it is <b>${ok ? "accepted" : "rejected"}</b>.`});
+    if (!ok) { rejected = true; break; }
+    accepted++;
+  }
+  const newToks = R.draft.slice(0, accepted).concat([rejected ? R.fix : R.bonus]);
+  STEPS.push({ctx:[...ctx], R, stage:"done", acc:accepted, rejected, caption: rejected
+    ? `First rejection at position ${accepted + 1}. Resample that position from the target's residual distribution max(0, p − q), normalized, giving "${R.fix}". Everything after it is discarded. This round produced <b>${accepted + 1} tokens for one target pass</b>.`
+    : `All ${accepted} accepted. The target pass also gives the distribution for the <b>next</b> position, so a bonus token "${R.bonus}" is sampled for free: <b>${accepted + 1} tokens</b> for one target pass.`});
+  ctx = ctx.concat(newToks);
+});
+STEPS.push({ctx:[...ctx], R:null, stage:"end", caption:"The speedup depends on the acceptance rate α and on the draft's cost. Expected tokens per target pass = (1 − α^(k+1)) / (1 − α). The rejection rule guarantees the output has exactly the target model's distribution (Leviathan et al.)."});
+function tok(svg, x, y, text, fill) {
+  const w = Math.max(56, text.length * 11 + 16);
+  el("rect", {x, y, width:w, height:36, rx:6, fill, stroke:css("--line")}, svg);
+  el("text", {x:x + w / 2, y:y + 23, "text-anchor":"middle", "font-size":13}, svg, text);
+  return w + 6;
+}
+function draw(svg, s) {
+  el("text", {x:20, y:30, "font-size":15}, svg, "accepted context");
+  let x = 20;
+  s.ctx.forEach(t => x += tok(svg, x, 42, t, css("--panel")));
+  if (!s.R) return;
+  el("text", {x:20, y:130, "font-size":15}, svg, s.stage === "draft" ? "draft proposals" : "proposals vs target");
+  x = 20;
+  s.R.draft.forEach((t, i) => {
+    let fill = css("--cell2");
+    if (s.stage === "check" && i < s.i) fill = css("--cell4");
+    if (s.stage === "check" && i === s.i) fill = s.ok ? css("--cell4") : css("--cell3");
+    if (s.stage === "done") fill = i < s.acc ? css("--cell4") : (i === s.acc && s.rejected ? css("--cell3") : (s.rejected ? css("--cell") : css("--cell4")));
+    const w = tok(svg, x, 142, t, fill);
+    if (s.stage !== "draft") el("text", {x:x + 4, y:200, "font-size":11, class:"muted"}, svg, `q=${s.R.q[i]} p=${s.R.p[i]}`);
+    x += w;
+  });
+  if (s.stage === "done") tok(svg, x + 10, 142, s.rejected ? s.R.fix : s.R.bonus, css("--accent"));
+  if (s.stage === "verify" || s.stage === "check" || s.stage === "done")
+    el("text", {x:20, y:250, "font-size":13}, svg, "target forward pass: 1 (scores all positions at once)");
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

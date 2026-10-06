@@ -1,0 +1,26 @@
+# One entry per variant. `model` is a local path (produced by quantize.py or downloaded pre-quantized);
+# `serve_flags` are added to `vllm serve`. Keep everything else identical across variants.
+gpu: L4
+max_model_len: 4096
+variants:
+  - name: bf16
+    model: /opt/models/base
+    serve_flags: []
+  - name: fp8-dynamic        # weights+activations FP8 (L4/Ada and newer only)
+    model: /opt/models/base-fp8
+    serve_flags: []
+  - name: awq-w4a16
+    model: /opt/models/base-awq
+    serve_flags: []
+  - name: gptq-w4a16
+    model: /opt/models/base-gptq
+    serve_flags: []
+  - name: bf16+fp8kv
+    model: /opt/models/base
+    serve_flags: ["--kv-cache-dtype", "fp8"]
+eval:
+  tasks: ["gsm8k", "arc_easy"]   # lm-evaluation-harness task names (verify they exist at lm_eval 0.4.13)
+  limit: 250                     # samples per task: enough to see large regressions, not to rank close variants
+load:
+  rates: [1, 2, 4, 8]
+  duration: 60

@@ -14,7 +14,7 @@ It also exports **Prometheus metrics with vLLM's names** (`vllm:time_to_first_to
 |---|---|
 | P1.3 | measuring TTFT/ITL/goodput from a real HTTP stream |
 | P2.3 #4 | finding the latency knee on T0 before you pay for a GPU |
-| P2.7 #6 | gateway backends, retries and fallbacks (`MOCKLLM_FAIL_RATE` is planned in the #6 exercises) |
+| P2.7 #6 | gateway backends, retries and fallbacks (`MOCKLLM_FAIL_RATE`, `MOCKLLM_FAIL_MIDSTREAM_RATE`) |
 | P3.5 / P3.6 | Prometheus scraping, KEDA scaling on `vllm:num_requests_waiting` in a kind cluster |
 
 ```bash

@@ -13,6 +13,8 @@ These are made-up but shaped like the real thing; P2 replaces them with vLLM mea
 Endpoints: POST /v1/completions, POST /v1/chat/completions (both support "stream": true, SSE),
            GET /health, GET /metrics (Prometheus; vLLM-style metric names so dashboards/alerts carry over).
 Auth:      if MOCKLLM_API_KEY is set, requests need "Authorization: Bearer <key>".
+Faults:    MOCKLLM_FAIL_RATE (HTTP 503 before any work) and MOCKLLM_FAIL_MIDSTREAM_RATE (stream cut after 3 tokens),
+           seeded by MOCKLLM_SEED — for testing gateway retries/fallbacks (P2.7).
 
 Run:       uv run uvicorn mockllm.server:app --app-dir platform --port 8001     (from the repo root)
            MOCKLLM_MAX_NUM_SEQS=8 MOCKLLM_PER_SEQ_MS=2 uv run uvicorn mockllm.server:app --app-dir platform --port 8001
@@ -24,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import random
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -46,6 +49,8 @@ class EngineConfig:
     kv_capacity_tokens: int = int(_env("KV_CAPACITY_TOKENS", 200_000))
     model_name: str = os.environ.get("MOCKLLM_MODEL", "mock-llama-8b")
     time_scale: float = _env("TIME_SCALE", 1.0)              # <1 speeds everything up (tests)
+    fail_rate: float = _env("FAIL_RATE", 0.0)                # fraction of requests answered with HTTP 503 (gateway tests)
+    fail_midstream_rate: float = _env("FAIL_MIDSTREAM_RATE", 0.0)  # fraction of streams cut after a few tokens
 
 
 @dataclass
@@ -149,8 +154,14 @@ def _count_tokens(text: str) -> int:
     return max(1, len(text.split()))  # whitespace "tokenizer": good enough for a cost model
 
 
+_rng = random.Random(int(os.environ.get("MOCKLLM_SEED", "0")))
+
+
 async def _generate(req: Request, prompt_tokens: int, chat: bool):
     body = await req.json()
+    if _rng.random() < cfg.fail_rate:
+        return JSONResponse({"error": {"message": "injected failure", "type": "overloaded"}}, status_code=503)
+    cut_after = 3 if _rng.random() < cfg.fail_midstream_rate else None
     max_tokens = int(body.get("max_tokens", 16))
     seq = Seq(rid=f"cmpl-{uuid.uuid4().hex[:12]}", prompt_tokens=prompt_tokens, max_tokens=max_tokens, arrival=time.monotonic())
     engine.submit(seq)
@@ -168,8 +179,12 @@ async def _generate(req: Request, prompt_tokens: int, chat: bool):
                      "total_tokens": prompt_tokens + seq.generated}
     if body.get("stream"):
         async def sse():
+            sent = 0
             while (tok := await seq.out.get()) is not None:
                 yield f"data: {json.dumps(chunk(tok, None))}\n\n"
+                sent += 1
+                if cut_after is not None and sent >= cut_after:
+                    raise ConnectionResetError("injected mid-stream failure")   # the client sees a truncated stream
             final = chunk(None, "length")
             final["usage"] = usage()
             yield f"data: {json.dumps(final)}\n\n"
