@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(p0_2_bench C)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+add_executable(mmap_bench mmap_bench.c)

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {"name": "release", "binaryDir": "${sourceDir}/../build/examples", "cacheVariables": {"CMAKE_BUILD_TYPE": "Release"}},
+    {"name": "asan", "binaryDir": "${sourceDir}/../build/examples-asan", "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "S2S_SANITIZE": "ON"}}
+  ]
+}

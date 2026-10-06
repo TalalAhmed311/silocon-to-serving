@@ -1,15 +1,35 @@
-# Lane B / P5 local harness (planned)
+# Lane B / P5 local harness
 
-This harness is built in Stage 4, at the first T2 module. The planned interface:
+This is the local counterpart of the LeetGPU judge. Every solution in `L*/solutions/<id>-<slug>/` has:
 
-```cpp
-// test side
-auto r = s2s::check(solve, reference_cpu, inputs, {.rtol = 1e-5, .atol = 1e-6});
-// bench side
-s2s::bench("transpose", solve, inputs, {.warmup = 10, .reps = 100, .bytes = 2*N*N*4});
-// prints: | size | median ms | p90 ms | GB/s | % of peak |  and writes results/<name>.json
+| File | What |
+|---|---|
+| `README.md` | an original hint ladder (3 rungs), a solution outline, and a "why this is fast" note |
+| `kernel.cu` | the solution: `solve(...)` launches the kernel(s) on **device** pointers, matching how LeetGPU calls you |
+| `test.cu` | builds random inputs, runs `solve`, and compares against a CPU (or cuBLAS/CUB) reference with stated tolerances. `--bench` prints a timing row |
+
+## Build and run (T2: needs an NVIDIA GPU, CUDA ≥ 12.4)
+
+```bash
+cmake -S laneB-cuda -B build/laneB -DCMAKE_BUILD_TYPE=Release        # CMAKE_CUDA_ARCHITECTURES defaults to "native"
+cmake --build build/laneB -j
+ctest --test-dir build/laneB --output-on-failure                       # correctness for every solved problem
+./build/laneB/L2_3-matrix-transpose --bench                           # timing table + results/<bench>.jsonl
 ```
 
-- **Minimum toolchain:** CUDA 12.4, CMake 3.24.
-- **Supported targets:** sm_75 (T4), sm_80, sm_86 (A10G), sm_89 (L4/L40S) and sm_90 (H100).
-- **Peak values:** taken from `course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/gpu_specs.yaml`, where each entry cites its source, and from a measured copy kernel.
+On AWS, use `infra/aws/single-node` with `instance_type = "g4dn.xlarge"` (T4, sm_75) for L1–L4, and `g6.xlarge` (L4, sm_89) for L5 tensor cores and FP8. Remember `make down`.
+
+## The API (`harness/include/s2s_cuda.cuh`)
+
+```cpp
+CUDA_CHECK(cudaMalloc(...));               // aborts with file:line and the CUDA error name
+CUDA_CHECK_LAUNCH();                       // after a <<<>>> launch in tests: surfaces async faults
+s2s::DeviceBuffer<float> d(host_vec);      // RAII cudaMalloc + upload; d.download() -> std::vector
+auto t = s2s::time_gpu([&]{ solve(...); });        // CUDA events, 5 warm-up, 50 reps -> median/p90 ms
+double copy = s2s::measure_copy_gbs();              // measured "100%" for memory-bound kernels
+s2s::report("transpose", "smem+pad", N, t, gbs, "GB/s", copy);   // Markdown row + results/transpose.jsonl
+```
+
+**Tolerances.** fp32 elementwise ops: `rtol = 1e-5`. Reductions and dot products: `rtol = 1e-4`, `atol` scaled by √N, because the GPU sums in a different order from the CPU reference. fp16: `rtol = 1e-2` (10-bit mantissa). Each test states its own tolerance and why.
+
+**Copyright.** The inputs, references and tests here are ours. LeetGPU's statements, starters and tests are CC BY-NC-ND 4.0 and are not reproduced. Open each problem on leetgpu.com from the level's `leetgpu-map.md`.

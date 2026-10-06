@@ -1,0 +1,23 @@
+# P0.2 C++ exercises (3 and 4). Python exercises (1, 2) run with pytest.
+#   uv run python 03-safetensors-loader/make_test_files.py ../build/st-test
+#   cmake -S . -B ../build/ex && cmake --build ../build/ex -j && ctest --test-dir ../build/ex --output-on-failure
+cmake_minimum_required(VERSION 3.20)
+project(p0_2_exercises CXX)
+set(CMAKE_CXX_STANDARD 20)
+option(S2S_USE_SOLUTIONS "Build tests against the reference solutions" OFF)
+enable_testing()
+set(S2S_COMMON ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/include)
+function(s2s_exercise name)
+  if(S2S_USE_SOLUTIONS)
+    set(impl_dir ${CMAKE_CURRENT_SOURCE_DIR}/solutions/${name})
+  else()
+    set(impl_dir ${CMAKE_CURRENT_SOURCE_DIR}/${name})
+  endif()
+  add_executable(${name} ${CMAKE_CURRENT_SOURCE_DIR}/${name}/test.cpp)
+  target_include_directories(${name} PRIVATE ${impl_dir} ${S2S_COMMON})
+endfunction()
+s2s_exercise(03-safetensors-loader)
+set(ST_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../build/st-test CACHE PATH "Output of make_test_files.py")
+add_test(NAME 03-safetensors-loader COMMAND 03-safetensors-loader ${ST_TEST_DIR})
+s2s_exercise(04-prefetch)
+add_test(NAME 04-prefetch COMMAND 04-prefetch WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
