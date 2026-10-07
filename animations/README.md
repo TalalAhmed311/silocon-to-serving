@@ -30,6 +30,6 @@ Where the Modular handbook already has a good interactive, we link it and build 
 | `p5-reduction.html` | P5.4 | tree reduction vs warp-shuffle reduction | planned |
 | `p5-online-softmax.html` | P5.5 | online softmax (running max and sum) | planned |
 | `p5-flashattention.html` | P5.8 | FlashAttention tiling over Q/K/V blocks | planned |
-| `p6-scheduler-loop.html` | P6.2 | waiting / running / preempted queues per step | planned |
-| `p6-radix-tree.html` | P6.4 | radix-tree prefix cache insert / match / evict | planned |
+| `p6-scheduler-loop.html` | P6.2 | waiting / running / preempted queues per step | built |
+| `p6-radix-tree.html` | P6.4 | radix-tree prefix cache insert / match / evict | built |
 | `p0-memory-layout.html` | P0.1 | struct padding; row- vs column-major strides (pilot animation) | planned for Stage 3 |

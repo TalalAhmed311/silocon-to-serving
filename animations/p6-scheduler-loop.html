@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scheduler loop: waiting, running, preempted</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Scheduler loop: waiting, running, preempted</h1>
+<p class="sub">One engine step at a time: running sequences first (decodes and prefill chunks), then admissions, all inside a token budget and a fixed KV block pool. Watch preemption by recompute when blocks run out.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 460" role="img" aria-label="Scheduler loop: waiting, running, preempted"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+
+// A miniature of platform/engine/v1/s2s_engine/scheduler.py: token budget, block pool, chunked prefill,
+// preemption by recompute (newest running victim), admission skipped in a step that preempted.
+const BS = 4, NB = 12, BUDGET = 8, MAXSEQ = 4;
+const REQS = [
+  {id: "A", prompt: 6, out: 6, arrive: 0}, {id: "B", prompt: 10, out: 4, arrive: 0},
+  {id: "C", prompt: 3, out: 7, arrive: 1}, {id: "D", prompt: 5, out: 5, arrive: 3}, {id: "E", prompt: 2, out: 3, arrive: 5}];
+const seqs = REQS.map(r => ({...r, gen: 0, computed: 0, blocks: [], state: "future", preempts: 0}));
+let free = [...Array(NB).keys()], waiting = [], running = [], done = [];
+const len = s => s.prompt + s.gen, need = (s, n) => Math.ceil((s.computed + n) / BS) - s.blocks.length;
+const STEPS = [];
+function snap(step, chunks, preempted, note) {
+  const owner = Array(NB).fill(null);
+  seqs.forEach(s => s.blocks.forEach(b => owner[b] = s.id));
+  STEPS.push({step, chunks, preempted, owner,
+    waiting: waiting.map(s => ({id: s.id, p: s.preempts})), running: running.map(s => s.id), done: done.map(s => s.id),
+    info: Object.fromEntries(seqs.map(s => [s.id, `${s.computed}/${len(s)}`])), caption: note});
+}
+snap(0, [], [], `Pool: ${NB} KV blocks of ${BS} tokens. Budget: <b>${BUDGET} tokens per step</b>, at most ${MAXSEQ} running. Requests arrive over time (prompt tokens → tokens to generate).`);
+for (let step = 1; step <= 40 && done.length < seqs.length; step++) {
+  seqs.filter(s => s.state === "future" && s.arrive <= step - 1).forEach(s => { s.state = "waiting"; waiting.push(s); });
+  let budget = BUDGET; const chunks = [], preempted = [], sched = new Set();
+  for (const s of [...running]) {
+    if (!running.includes(s)) continue;
+    let n = Math.min(len(s) - s.computed, budget); if (n <= 0) break;
+    while (need(s, n) > free.length) {
+      const cands = running.filter(x => x !== s && !sched.has(x.id));
+      const v = cands.length ? cands[cands.length - 1] : s;
+      running.splice(running.indexOf(v), 1); free.push(...v.blocks); v.blocks = []; v.computed = 0; v.preempts++;
+      waiting.unshift(v); preempted.push(v.id);
+      if (v === s) break;
+    }
+    if (!running.includes(s)) continue;
+    while (need(s, n) > 0) s.blocks.push(free.shift());
+    chunks.push({id: s.id, n, kind: s.computed < s.prompt ? "prefill" : (s.computed + n > s.prompt + 0 && n === 1 ? "decode" : "prefill")});
+    s.start = s.computed; s.n = n; sched.add(s.id); budget -= n;
+  }
+  while (!preempted.length && budget > 0 && running.length < MAXSEQ && waiting.length) {
+    const s = waiting[0], n = Math.min(len(s) - s.computed, budget);
+    if (need(s, n) > free.length) break;
+    while (need(s, n) > 0) s.blocks.push(free.shift());
+    waiting.shift(); running.push(s); chunks.push({id: s.id, n, kind: "prefill", admit: true});
+    s.start = s.computed; s.n = n; sched.add(s.id); budget -= n;
+  }
+  // "forward pass": advance, sample a token where the chunk reached the end
+  const fin = [];
+  running.filter(s => sched.has(s.id)).forEach(s => {
+    s.computed = s.start + s.n;
+    if (s.computed === len(s)) { s.gen++; if (s.gen >= s.out) fin.push(s); }
+  });
+  fin.forEach(s => { running.splice(running.indexOf(s), 1); free.push(...s.blocks); s.blocks = []; done.push(s); s.state = "done"; });
+  const used = BUDGET - budget;
+  let cap = `Step ${step}: scheduled <b>${used}/${BUDGET}</b> tokens — ` + chunks.map(c => `${c.id} ${c.n === 1 && c.kind === "decode" ? "decode" : (c.admit ? "admit+prefill " : "prefill ") + c.n}`).join(", ") + ".";
+  if (preempted.length) cap += ` <b>Out of blocks → preempted ${preempted.join(", ")}</b> (blocks freed, back to the FRONT of waiting; will recompute). No admissions this step.`;
+  if (fin.length) cap += ` Finished: ${fin.map(s => s.id).join(", ")} (blocks returned).`;
+  if (chunks.some(c => c.kind === "prefill" && c.n < 8) && chunks.length > 1 && !preempted.length) cap += " Chunked prefill lets decodes keep flowing next to a long prompt.";
+  snap(step, chunks, preempted, cap);
+}
+STEPS.push({...STEPS[STEPS.length - 1], caption: "All requests finished. Every step stayed within the token budget; preempted requests were recomputed from scratch (their prompt + generated tokens re-prefilled), so outputs are unchanged — the property tests/test_scheduler.py checks with a fake model."});
+
+function draw(svg, s) {
+  const col = id => ({A: "--cell2", B: "--cell3", C: "--cell4", D: "--warn", E: "--accent"})[id];
+  el("text", {x: 20, y: 28, "font-size": 15, "font-weight": 600}, svg, `step ${s.step}`);
+  const box = (x, y, w, h, title) => { el("rect", {x, y, width: w, height: h, rx: 10, fill: css("--panel"), stroke: css("--line")}, svg);
+    el("text", {x: x + 10, y: y + 20, "font-size": 13, "font-weight": 600}, svg, title); };
+  const chip = (x, y, id, extra, hi) => {
+    el("rect", {x, y, width: 92, height: 34, rx: 6, fill: css(col(id)), stroke: hi ? css("--bad") : css("--line"), "stroke-width": hi ? 3 : 1, opacity: id === "E" || id === "D" ? 0.85 : 1}, svg);
+    el("text", {x: x + 8, y: y + 22, "font-size": 13}, svg, `${id}  ${extra}`);
+  };
+  box(20, 45, 290, 170, "waiting");
+  s.waiting.forEach((w, k) => chip(32 + (k % 3) * 94, 75 + Math.floor(k / 3) * 42, w.id, w.p ? `↺${w.p}` : "", s.preempted.includes(w.id)));
+  box(330, 45, 400, 170, `running (≤ ${MAXSEQ})`);
+  s.running.forEach((id, k) => { const c = s.chunks.find(c => c.id === id);
+    chip(342 + (k % 4) * 96, 75, id, s.info[id], false);
+    if (c) el("text", {x: 346 + (k % 4) * 96, y: 132, "font-size": 12, class: "muted"}, svg, `+${c.n} ${c.n === 1 && c.kind === "decode" ? "decode" : "prefill"}`); });
+  box(750, 45, 190, 170, "finished");
+  s.done.forEach((id, k) => chip(762 + (k % 2) * 88, 75 + Math.floor(k / 2) * 42, id, "", false));
+  // token budget bar
+  el("text", {x: 20, y: 250, "font-size": 13, "font-weight": 600}, svg, `token budget this step (${BUDGET})`);
+  let x = 20;
+  s.chunks.forEach(c => { const w = c.n * 70;
+    el("rect", {x, y: 260, width: w - 2, height: 30, rx: 4, fill: css(col(c.id)), stroke: css("--line")}, svg);
+    el("text", {x: x + 6, y: 280, "font-size": 12}, svg, `${c.id}×${c.n}`); x += w; });
+  el("rect", {x: 20, y: 260, width: BUDGET * 70, height: 30, rx: 4, fill: "none", stroke: css("--fg"), "stroke-dasharray": "4 3"}, svg);
+  // block pool
+  el("text", {x: 20, y: 330, "font-size": 13, "font-weight": 600}, svg, `KV block pool (${NB} × ${BS} tokens) — ${s.owner.filter(o => !o).length} free`);
+  s.owner.forEach((o, b) => {
+    const bx = 20 + b * 76;
+    el("rect", {x: bx, y: 342, width: 70, height: 46, rx: 6, fill: o ? css(col(o)) : css("--bg"), stroke: css("--line")}, svg);
+    el("text", {x: bx + 35, y: 370, "text-anchor": "middle", "font-size": 13}, svg, o || "free");
+    el("text", {x: bx + 35, y: 404, "text-anchor": "middle", "font-size": 10, class: "muted"}, svg, `#${b}`);
+  });
+  el("text", {x: 20, y: 440, "font-size": 12, class: "muted"}, svg, "chip label: computed/total tokens · ↺n = times preempted · red outline = preempted this step");
+}
+startAnimation({steps: STEPS, draw});
+
+</script>
+</main>
+</body>
+</html>

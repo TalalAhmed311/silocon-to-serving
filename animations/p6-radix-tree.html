@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radix-tree prefix cache</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Radix-tree prefix cache</h1>
+<p class="sub">RadixAttention-style cache over token ids: insert, longest-prefix match with edge splits, ref-count locks, and LRU eviction of unlocked leaves.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 490" role="img" aria-label="Radix-tree prefix cache"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+
+// A miniature of platform/engine/v1/s2s_engine/radix_cache.py. Tokens are letters; each edge holds a run of tokens.
+let clock = 0;
+const mkNode = (parent, key) => ({parent, key, kids: {}, ref: 0, t: clock++});
+const root = mkNode(null, ""); root.ref = 1;
+function split(ch, n) {
+  const up = mkNode(ch.parent, ch.key.slice(0, n)); up.ref = ch.ref; up.t = ch.t;
+  up.parent.kids[ch.key[0]] = up; ch.parent = up; ch.key = ch.key.slice(n); up.kids[ch.key[0]] = ch; return up;
+}
+const common = (a, b, i) => { let n = 0; while (n < a.length && i + n < b.length && a[n] === b[i + n]) n++; return n; };
+function match(s) { let node = root, i = 0; const path = [];
+  while (i < s.length) { let ch = node.kids[s[i]]; if (!ch) break; const n = common(ch.key, s, i); ch.t = clock++;
+    if (n < ch.key.length) ch = split(ch, n); path.push(ch); i += n; node = ch; }
+  return {len: i, node, path}; }
+function insert(s) { let node = root, i = 0; const path = [];
+  while (i < s.length) { let ch = node.kids[s[i]];
+    if (!ch) { const leaf = mkNode(node, s.slice(i)); node.kids[s[i]] = leaf; path.push(leaf); return {hit: i, path, fresh: leaf}; }
+    const n = common(ch.key, s, i); ch.t = clock++; if (n < ch.key.length) ch = split(ch, n); path.push(ch); i += n; node = ch; }
+  return {hit: i, path}; }
+const lock = n => { while (n !== root) { n.ref++; n = n.parent; } };
+const unlock = n => { while (n !== root) { n.ref--; n = n.parent; } };
+function leaves() { const out = [], st = [root]; while (st.length) { const n = st.pop(); const k = Object.values(n.kids);
+  if (!k.length && n !== root) out.push(n); st.push(...k); } return out; }
+function evict(num) { const freed = []; let guard = 0;
+  while (freed.length < num && guard++ < 50) { const c = leaves().filter(l => l.ref === 0).sort((a, b) => a.t - b.t)[0];
+    if (!c) break; freed.push(c.key); delete c.parent.kids[c.key[0]]; }
+  return freed; }
+
+function layout() {             // tidy-ish tree layout: leaves spaced evenly, parents centred over children
+  const pos = new Map(); let leafX = 0;
+  (function walk(n, depth) { const k = Object.keys(n.kids).sort().map(c => n.kids[c]);
+    if (!k.length) { pos.set(n, {x: leafX++, d: depth}); return; }
+    k.forEach(c => walk(c, depth + 1)); const xs = k.map(c => pos.get(c).x);
+    pos.set(n, {x: (Math.min(...xs) + Math.max(...xs)) / 2, d: depth}); })(root, 0);
+  const nodes = []; pos.forEach((p, n) => nodes.push({n, ...p}));
+  return {nodes, width: Math.max(1, leafX)};
+}
+const STEPS = [];
+function snap(caption, hl = [], extra = {}) {
+  const {nodes, width} = layout();
+  STEPS.push({caption, width, hl: new Set(hl.map(n => n)), ...extra,
+    nodes: nodes.map(o => ({id: o.n, x: o.x, d: o.d, key: o.n.key, ref: o.n.ref, t: o.n.t, pid: o.n.parent})),
+  });
+}
+snap("An empty radix tree. Each request's tokens (letters here) are inserted after it runs, with the KV-cache slot of every token stored on the edge.");
+let r = insert("SYSTEMhello"); snap("Insert <b>SYSTEMhello</b> (a system prompt + user turn): one edge from the root.", r.path);
+let m = match("SYSTEMhi"); snap(`Match <b>SYSTEMhi</b>: the longest cached prefix is <b>${m.len}</b> tokens (SYSTEMh). The edge is <b>split</b> at the mismatch so the matched part is its own node; those ${m.len} tokens' KV is reused, only "i" is prefilled.`, m.path);
+r = insert("SYSTEMhi"); snap("After it runs, insert <b>SYSTEMhi</b>: only the new suffix \"i\" becomes a new leaf.", r.path);
+r = insert("SYSTEMbye"); snap("Insert <b>SYSTEMbye</b>: the SYSTEM edge splits again; three conversations now share one copy of the system prompt.", r.path);
+r = insert("Other"); snap("Insert an unrelated prompt <b>Other</b>: a new branch from the root.", r.path);
+m = match("SYSTEMhi!"); lock(m.node); snap(`A running request matches <b>SYSTEMhi</b> and <b>locks</b> its path (ref count +1 on every node up to the root). Locked nodes cannot be evicted while the request uses their KV.`, m.path, {locked: true});
+let f = evict(6); snap(`Memory pressure: evict ≥ 6 tokens. Only <b>unlocked leaves</b> are candidates, least-recently-used first. Freed: ${f.map(k => `"${k}"`).join(", ")}. A parent left with no children becomes a leaf and can go next.`, []);
+unlock(m.node); snap("The request finishes and <b>unlocks</b> its path. Its nodes stay cached (ref 0) for the next turn of that conversation.", m.path);
+f = evict(100); snap(`Evict everything evictable: ${f.map(k => `"${k}"`).join(", ")}. Contrast with block hashing (P6.3): the radix tree matches at <b>token</b> granularity, hashing only at full-block boundaries.`, []);
+
+function draw(svg, s) {
+  const W = 920, X0 = 20, Y0 = 60, DY = 95;
+  const xOf = x => X0 + (s.width <= 1 ? W / 2 : (x + 0.5) * W / s.width);
+  const byId = new Map(s.nodes.map(n => [n.id, n]));
+  s.nodes.forEach(n => { if (n.pid && byId.has(n.pid)) { const p = byId.get(n.pid);
+    el("line", {x1: xOf(p.x), y1: Y0 + p.d * DY + 14, x2: xOf(n.x), y2: Y0 + n.d * DY - 14, stroke: s.hl.has(n.id) ? css("--accent") : css("--line"), "stroke-width": s.hl.has(n.id) ? 3 : 1.5}, svg);
+    el("text", {x: (xOf(p.x) + xOf(n.x)) / 2 + 6, y: Y0 + (p.d + 0.5) * DY + 4, "font-size": 14, "font-weight": 600}, svg, `"${n.key}"`); } });
+  s.nodes.forEach(n => {
+    const isRoot = !n.pid;
+    el("circle", {cx: xOf(n.x), cy: Y0 + n.d * DY, r: 14, fill: isRoot ? css("--panel") : n.ref > 0 ? css("--cell3") : s.hl.has(n.id) ? css("--cell2") : css("--cell"),
+      stroke: n.ref > 0 && !isRoot ? css("--accent2") : css("--line"), "stroke-width": n.ref > 0 && !isRoot ? 3 : 1}, svg);
+    el("text", {x: xOf(n.x), y: Y0 + n.d * DY + 4, "text-anchor": "middle", "font-size": 10}, svg, isRoot ? "root" : `r${n.ref}`);
+  });
+  const ly = 470;
+  [["--cell2", "matched / inserted path"], ["--cell3", "locked (ref > 0)"], ["--cell", "cached, evictable when a leaf"]].forEach(([v, t], k) => {
+    el("rect", {x: 20 + k * 260, y: ly - 12, width: 14, height: 14, fill: css(v), stroke: css("--line")}, svg);
+    el("text", {x: 40 + k * 260, y: ly, "font-size": 12}, svg, t); });
+}
+startAnimation({steps: STEPS, draw});
+
+</script>
+</main>
+</body>
+</html>
