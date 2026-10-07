@@ -1,0 +1,2 @@
+owner        = "yourname"
+cluster_name = "REPLACE: terraform -chdir=../eks output -raw cluster_name"

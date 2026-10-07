@@ -21,7 +21,7 @@ def summarize(results, duration_s: float, ttft_slo: float, tpot_slo: float) -> d
             "offered_rps": len(results) / duration_s, "goodput_rps": good / duration_s,
             "out_tok_s": out_tokens / duration_s,
             "ttft_p50": pct(ttft, 50), "ttft_p90": pct(ttft, 90), "ttft_p99": pct(ttft, 99),
-            "tpot_p50": pct(tpot, 50), "tpot_p90": pct(tpot, 90), "itl_p50": pct(itl, 50), "itl_p90": pct(itl, 90)}
+            "tpot_p50": pct(tpot, 50), "tpot_p90": pct(tpot, 90), "itl_p50": pct(itl, 50), "itl_p90": pct(itl, 90), "itl_p99": pct(itl, 99)}
 
 
 def find_knee(rows: list[dict], ttft_slo: float) -> dict | None:

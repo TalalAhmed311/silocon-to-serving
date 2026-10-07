@@ -103,7 +103,10 @@ class Plan:
 
 def plan(model: Model, gpu_name: str, weight_dtype: str = "bf16", kv_dtype: str = "bf16", tp: int = 1,
          context: int = 4096, mem_util: float = 0.90, activation_gb: float = 1.0, bw_util: float = 0.80,
-         mfu: float = 0.50, batches=(1, 8, 32, 128), prompts=(512, 2048, 8192)) -> Plan:
+         mfu: float = 0.50, batches=(1, 8, 32, 128), prompts=(512, 2048, 8192),
+         link_gbs: float | None = None, link_alpha_us: float = 0.0, act_dtype: str = "bf16") -> Plan:
+    """link_gbs / link_alpha_us (P4.2): per-link bandwidth and per-step latency of the TP interconnect, fitted in P4.1.
+    When given and tp > 1, each decode step adds 2 ring all-reduces per layer of the batch's activations."""
     g = specs.get(gpu_name)
     wb, kb = DTYPE_BYTES[weight_dtype], DTYPE_BYTES[kv_dtype]
     weights = model.total_params() * wb / tp                         # TP shards every weight matrix (≈)
@@ -125,6 +128,8 @@ def plan(model: Model, gpu_name: str, weight_dtype: str = "bf16", kv_dtype: str 
         # half-full context on average for a running batch: each sequence reads context/2 tokens of KV per step
         step_bytes = read_w + B * (context / 2) * model.kv_bytes_per_token(kb)
         step_s = step_bytes / bw
+        if link_gbs and tp > 1:
+            step_s += tp_comm_seconds_per_step(model, tp, B, link_gbs, link_alpha_us, DTYPE_BYTES[act_dtype])
         p.decode_ceiling[B] = (1 / step_s, B / step_s)
     peak = g.get(f"{'fp8' if weight_dtype == 'fp8' else 'fp16'}_dense_tflops")
     if peak:
@@ -132,6 +137,17 @@ def plan(model: Model, gpu_name: str, weight_dtype: str = "bf16", kv_dtype: str 
             flops = 2 * model.active_params() * T + 2 * model.layers * model.heads * model.hd * T * T  # weights + causal attn
             p.prefill_s[T] = flops / (peak * 1e12 * mfu * tp)
     return p
+
+
+def tp_comm_seconds_per_step(model: Model, tp: int, tokens: int, link_gbs: float, alpha_us: float = 0.0,
+                             act_bytes: float = 2.0) -> float:
+    """Megatron-style TP: one all-reduce after attention and one after the MLP, per layer, of tokens × hidden
+    activations. Ring cost per all-reduce = 2(tp-1)·α + 2(tp-1)/tp · S/B (P4.1 commmodel)."""
+    if tp <= 1:
+        return 0.0
+    size = tokens * model.hidden * act_bytes
+    one = 2 * (tp - 1) * alpha_us * 1e-6 + 2 * (tp - 1) / tp * size / (link_gbs * 1e9)
+    return 2 * model.layers * one
 
 
 def presets_dir() -> Path:

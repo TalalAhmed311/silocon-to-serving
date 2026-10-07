@@ -1,0 +1,47 @@
+# #9 on EKS with KubeRay (primary multi-node path). Ray Train's TorchTrainer starts one worker per GPU, sets up
+# torch.distributed (NCCL) for us, and restarts failed workers from the latest checkpoint (FailureConfig.max_failures).
+# KubeRay operator + CRDs: infra/aws/distributed/kuberay.sh. Ray 2.59.0 per SOURCES.md; field names per KubeRay
+# docs (UNVERIFIED for the operator version you install). Checkpoints go to the S3 bucket from infra/aws/distributed.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata: { name: s2s-train, namespace: s2s-train }
+spec:
+  entrypoint: python /app/platform/training/ray/launch.py --workers 4 --steps 2000 --storage s3://REPLACE-ckpt-bucket/s2s-train
+  shutdownAfterJobFinishes: true          # GPUs are released as soon as the job ends
+  ttlSecondsAfterFinished: 300
+  activeDeadlineSeconds: 7200             # hard stop: never let a forgotten job burn GPU-hours
+  backoffLimit: 2
+  rayClusterSpec:
+    rayVersion: "2.59.0"
+    headGroupSpec:
+      rayStartParams: { num-gpus: "0" }
+      template:
+        spec:
+          serviceAccountName: s2s-train   # Pod Identity / IRSA → S3 access to the checkpoint bucket only
+          containers:
+            - name: ray-head
+              image: REGISTRY/s2s-train:TODO-pin-digest   # rayproject/ray-ml base + this repo; pin by digest
+              resources: { requests: { cpu: "2", memory: 8Gi }, limits: { memory: 8Gi } }
+              securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+    workerGroupSpecs:
+      - groupName: gpu
+        replicas: 1
+        minReplicas: 0
+        maxReplicas: 2
+        rayStartParams: {}
+        template:
+          spec:
+            serviceAccountName: s2s-train
+            nodeSelector: { s2s/pool: gpu }
+            tolerations: [{ key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }]
+            containers:
+              - name: ray-worker
+                image: REGISTRY/s2s-train:TODO-pin-digest
+                resources:
+                  requests: { cpu: "40", memory: 160Gi, nvidia.com/gpu: 4 }   # sized for g6.12xlarge (4 GPUs): adjust
+                  limits: { memory: 160Gi, nvidia.com/gpu: 4 }
+                securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+                volumeMounts: [{ name: shm, mountPath: /dev/shm }]
+            volumes:
+              - name: shm
+                emptyDir: { medium: Memory, sizeLimit: 16Gi }   # NCCL needs real shared memory

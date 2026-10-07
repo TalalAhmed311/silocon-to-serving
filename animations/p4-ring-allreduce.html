@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ring all-reduce, step by step</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Ring all-reduce, step by step</h1>
+<p class="sub">4 GPUs, each buffer split into 4 chunks. Reduce-scatter (3 steps), then all-gather (3 steps): 2(n−1) steps, and each GPU sends 2(n−1)/n of its buffer.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Ring all-reduce, step by step"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+const N = 4, NAMES = ["a", "b", "c", "d"];
+// contrib[r][c]: which ranks' data chunk c on rank r currently contains
+let contrib = [...Array(N)].map((_, r) => [...Array(N)].map(() => [r]));
+const snap = () => contrib.map(row => row.map(s => [...s]));
+const STEPS = [{st: snap(), sends: [], phase: "start", sent: 0,
+  caption: "Each GPU r holds its own buffer (letter = which GPU's data). The goal: every GPU ends with the elementwise <b>sum</b> of all 4 buffers. The ring: GPU r only ever sends to GPU r+1 (mod 4)."}];
+let sent = 0;
+for (let s = 0; s < N - 1; s++) {
+  const sends = [...Array(N)].map((_, r) => ({from: r, to: (r + 1) % N, chunk: ((r - s - 1) % N + N) % N}));
+  const msgs = sends.map(m => [...contrib[m.from][m.chunk]]);
+  sends.forEach((m, k) => { contrib[m.to][m.chunk] = [...new Set([...contrib[m.to][m.chunk], ...msgs[k]])].sort(); });
+  sent += 1;
+  STEPS.push({st: snap(), sends, phase: "reduce-scatter", sent,
+    caption: `Reduce-scatter step ${s + 1}/${N - 1}. <b>All four links are busy at once</b>: GPU r sends one chunk (¼ of its buffer) to GPU r+1, which <b>adds</b> it to its own copy. ` +
+      (s === N - 2 ? "After n−1 steps, each GPU owns <b>one fully reduced chunk</b> (green)." : "The partial sums grow by one contributor per hop.")});
+}
+for (let s = 0; s < N - 1; s++) {
+  const sends = [...Array(N)].map((_, r) => ({from: r, to: (r + 1) % N, chunk: ((r - s) % N + N) % N}));
+  const msgs = sends.map(m => [...contrib[m.from][m.chunk]]);
+  sends.forEach((m, k) => { contrib[m.to][m.chunk] = msgs[k]; });
+  sent += 1;
+  STEPS.push({st: snap(), sends, phase: "all-gather", sent,
+    caption: `All-gather step ${s + 1}/${N - 1}. Each GPU forwards a <b>finished</b> chunk; the receiver <b>overwrites</b> (no addition). ` +
+      (s === N - 2 ? "Done: every GPU has every reduced chunk." : "")});
+}
+STEPS.push({st: snap(), sends: [], phase: "done", sent,
+  caption: "Cost: 2(n−1) = 6 steps of S/n bytes each, so every GPU sent 2(n−1)/n · S = 1.5 S. The time is ≈ 2(n−1)·α + 2(n−1)/n · S/B, which is almost independent of n for large messages (bandwidth-optimal). That's also why nccl-tests multiplies algbw by 2(n−1)/n to get <b>busbw</b>."});
+
+function draw(svg, s) {
+  const X0 = 40, W = 200, GAP = 25, Y0 = 70, H = 62;
+  const xOf = r => X0 + r * (W + GAP);
+  el("text", {x: 20, y: 30, "font-size": 15, "font-weight": 600}, svg,
+    s.phase === "start" ? "initial state" : s.phase === "done" ? "result" : `${s.phase} · messages so far: ${s.sent} per GPU`);
+  for (let r = 0; r < N; r++) {
+    el("rect", {x: xOf(r), y: Y0 - 30, width: W, height: H * N + 40, rx: 10, fill: css("--panel"), stroke: css("--line")}, svg);
+    el("text", {x: xOf(r) + W / 2, y: Y0 - 10, "text-anchor": "middle", "font-size": 14, "font-weight": 600}, svg, `GPU ${r}`);
+    for (let c = 0; c < N; c++) {
+      const who = s.st[r][c], full = who.length === N;
+      const sending = s.sends.some(m => m.from === r && m.chunk === c);
+      const recv = s.sends.some(m => m.to === r && m.chunk === c);
+      const fill = full ? css("--cell4") : who.length > 1 ? css("--cell2") : css("--cell");
+      el("rect", {x: xOf(r) + 12, y: Y0 + c * H, width: W - 24, height: H - 12, rx: 6, fill,
+        stroke: sending ? css("--accent") : recv ? css("--accent2") : css("--line"), "stroke-width": sending || recv ? 3 : 1}, svg);
+      el("text", {x: xOf(r) + 22, y: Y0 + c * H + 20, "font-size": 11, class: "muted"}, svg, `chunk ${c}`);
+      el("text", {x: xOf(r) + W / 2, y: Y0 + c * H + 38, "text-anchor": "middle", "font-size": 14}, svg,
+        who.map(w => NAMES[w] + c).join(" + "));
+    }
+  }
+  // ring arrows (r → r+1) under the boxes, labelled with the chunk in flight
+  const yA = Y0 + H * N + 35;
+  s.sends.forEach(m => {
+    const x1 = xOf(m.from) + W / 2, x2 = xOf(m.to) + W / 2;
+    const wrap = m.to < m.from;
+    const d = wrap ? `M${x1},${yA} C${x1},${yA + 45} ${x2},${yA + 45} ${x2},${yA}`
+                   : `M${x1 + 30},${yA} L${x2 - 30},${yA}`;
+    el("path", {d, fill: "none", stroke: css("--accent"), "stroke-width": 2.5, "marker-end": "url(#arr)"}, svg);
+    el("text", {x: wrap ? (x1 + x2) / 2 : (x1 + x2) / 2, y: wrap ? yA + 42 : yA - 6, "text-anchor": "middle", "font-size": 12}, svg, `chunk ${m.chunk}`);
+  });
+  const defs = el("defs", {}, svg), mk = el("marker", {id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto"}, defs);
+  el("path", {d: "M0,0 L10,5 L0,10 z", fill: css("--accent")}, mk);
+  const lx = 20, ly = 505;
+  [["--cell", "own data only"], ["--cell2", "partial sum"], ["--cell4", "full sum"]].forEach(([v, t], k) => {
+    el("rect", {x: lx + k * 170, y: ly - 12, width: 14, height: 14, fill: css(v), stroke: css("--line")}, svg);
+    el("text", {x: lx + k * 170 + 20, y: ly, "font-size": 12}, svg, t);
+  });
+  el("text", {x: 540, y: ly, "font-size": 12, class: "muted"}, svg, "blue outline: sending · orange outline: receiving");
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# #11: time-slicing via the GPU Operator. Create this ConfigMap, then point the ClusterPolicy at it:
+#   kubectl patch clusterpolicies.nvidia.com/cluster-policy --type merge \
+#     -p '{"spec":{"devicePlugin":{"config":{"name":"s2s-sharing","default":"ts-4"}}}}'
+# Each physical GPU is then advertised as 4 nvidia.com/gpu. No memory or fault isolation between the 4 pods.
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: s2s-sharing, namespace: gpu-operator }
+data:
+  ts-4: |-
+    version: v1
+    sharing:
+      timeSlicing:
+        renameByDefault: false
+        failRequestsGreaterThanOne: true
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4
+  mps-4: |-
+    version: v1
+    sharing:
+      mps:
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4
