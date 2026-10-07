@@ -1,0 +1,9 @@
+site/docs/
+site/build/
+.venv/
+__pycache__/
+*.ncu-rep
+*.nsys-rep
+build/
+results/
+*.bin

@@ -1,0 +1,16 @@
+# T3: EKS with real GPUs.  kubectl apply -k platform/deploy/overlays/eks   (after creating the vllm-api-key Secret
+# and the `models` PVC — see P3.7 — and pushing the serving image to your registry)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../base/gateway.yaml
+  - ../../base/vllm.yaml
+images:
+  - name: REGISTRY/s2s-vllm
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/s2s-vllm   # REPLACE with your ECR repository
+    newTag: "0.31.0"
+configMapGenerator:
+  - name: gateway-config
+    namespace: s2s
+    files: [gateway.yaml]

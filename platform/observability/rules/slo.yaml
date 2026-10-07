@@ -1,0 +1,46 @@
+# #13 SLO rules (plain Prometheus rule-file format, so `promtool test rules` runs on a laptop).
+# For the cluster, wrap the `groups:` list in a PrometheusRule CR (see rules/prometheusrule.yaml).
+#
+# SLO: 99% of requests have TTFT < 2 s, over 30 days -> error budget 1%.
+# Burn-rate alerting (Google SRE workbook): page when the budget burns 14.4x too fast over 1h AND 5m (fast burn),
+# ticket when it burns 6x over 6h AND 30m (slow burn). Multi-window = fast to fire, fast to reset, few false pages.
+groups:
+  - name: s2s-latency-recording
+    interval: 30s
+    rules:
+      - record: s2s:ttft_seconds:p90_5m
+        expr: histogram_quantile(0.90, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[5m])))
+      - record: s2s:itl_seconds:p90_5m
+        expr: histogram_quantile(0.90, sum by (le) (rate(vllm:inter_token_latency_seconds_bucket[5m])))
+      # fraction of requests whose TTFT exceeded 2 s (the "bad events" ratio), per window. Needs a bucket at le="2".
+      - record: s2s:ttft_slo_errors:ratio_rate5m
+        expr: |
+          1 - (sum(rate(vllm:time_to_first_token_seconds_bucket{le="2"}[5m])) / sum(rate(vllm:time_to_first_token_seconds_count[5m])))
+      - record: s2s:ttft_slo_errors:ratio_rate30m
+        expr: |
+          1 - (sum(rate(vllm:time_to_first_token_seconds_bucket{le="2"}[30m])) / sum(rate(vllm:time_to_first_token_seconds_count[30m])))
+      - record: s2s:ttft_slo_errors:ratio_rate1h
+        expr: |
+          1 - (sum(rate(vllm:time_to_first_token_seconds_bucket{le="2"}[1h])) / sum(rate(vllm:time_to_first_token_seconds_count[1h])))
+      - record: s2s:ttft_slo_errors:ratio_rate6h
+        expr: |
+          1 - (sum(rate(vllm:time_to_first_token_seconds_bucket{le="2"}[6h])) / sum(rate(vllm:time_to_first_token_seconds_count[6h])))
+  - name: s2s-slo-alerts
+    rules:
+      - alert: TTFTBudgetFastBurn
+        expr: s2s:ttft_slo_errors:ratio_rate1h > (14.4 * 0.01) and s2s:ttft_slo_errors:ratio_rate5m > (14.4 * 0.01)
+        labels: { severity: page }
+        annotations: { summary: "TTFT SLO burning >14.4x budget (1h and 5m windows)" }
+      - alert: TTFTBudgetSlowBurn
+        expr: s2s:ttft_slo_errors:ratio_rate6h > (6 * 0.01) and s2s:ttft_slo_errors:ratio_rate30m > (6 * 0.01)
+        labels: { severity: ticket }
+        annotations: { summary: "TTFT SLO burning >6x budget (6h and 30m windows)" }
+      - alert: KVCacheSaturated
+        expr: max(vllm:kv_cache_usage_perc) > 0.95
+        for: 10m
+        labels: { severity: ticket }
+        annotations: { summary: "KV cache >95% for 10m: expect preemptions and TTFT growth (P2.3)" }
+      - alert: GPUXidErrors
+        expr: increase(DCGM_FI_DEV_XID_ERRORS[10m]) > 0
+        labels: { severity: page }
+        annotations: { summary: "GPU XID error on {{ $labels.Hostname }} — hardware/driver fault, drain the node" }

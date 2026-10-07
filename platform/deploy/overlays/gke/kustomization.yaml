@@ -1,0 +1,17 @@
+# T3 (P3.9): GKE with an L4 pool. Same base as overlays/eks; only the image registry and the gateway config differ.
+# Before applying: push the serving image to Artifact Registry, create the vllm-api-key Secret and the `models` PVC
+# (GKE default StorageClass is pd-balanced; use a Filestore/GCS-FUSE-backed volume or the P3.7 node cache for weights).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../base/gateway.yaml
+  - ../../base/vllm.yaml
+images:
+  - name: REGISTRY/s2s-vllm
+    newName: us-central1-docker.pkg.dev/REPLACE-project/s2s/s2s-vllm   # REPLACE with your Artifact Registry repo
+    newTag: "0.31.0"
+configMapGenerator:
+  - name: gateway-config
+    namespace: s2s
+    files: [gateway.yaml]

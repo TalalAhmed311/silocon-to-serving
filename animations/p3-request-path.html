@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Request path: cold vs warm</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Request path: cold vs warm</h1>
+<p class="sub">P3.4 / P3.6 — a request through gateway → queue → autoscaler → GPU pod. Warm: a ready pod exists. Cold: the pool is at zero and every startup stage lands on the first user's latency.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Request path: cold vs warm"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="controls extra"><label>Scenario <select id="mode"><option value="warm">warm (a ready pod exists)</option><option value="cold">cold (GPU pool at 0)</option><option value="mitigated">cold, mitigated (pre-pulled image, NVMe weight cache, warm pool)</option></select></label></div>
+<p class="sub">Stage durations are illustrative placeholders for the shape of a cold start. P3.6 asks you to replace them with your own measured timeline.</p>
+<script>
+const COMPONENTS = ["client", "gateway #6", "queue", "autoscaler #3", "GPU node", "vLLM pod"];
+const PLANS = {
+  warm: [["client", "gateway #6", 0.01, "Request arrives at the gateway: auth, rate limit, route (~ms)."],
+         ["gateway #6", "vLLM pod", 0.3, "Routed to a Ready pod. Prefill starts immediately, so TTFT ≈ prefill."]],
+  cold: [["client", "gateway #6", 0.01, "Request arrives. No backend has capacity: the GPU pool is at <b>zero</b>."],
+         ["gateway #6", "queue", 0.01, "It waits in the queue. Queue depth = 1 is the scaling signal (KEDA on <code>vllm:num_requests_waiting</code> or a gateway queue metric)."],
+         ["queue", "autoscaler #3", 15, "The autoscaler sees queue > 0 and scales the Deployment 0 → 1. The pod is <b>Pending</b>: no GPU node exists."],
+         ["autoscaler #3", "GPU node", 120, "Karpenter or the node group launches a GPU instance and it joins the cluster. The device plugin advertises <code>nvidia.com/gpu</code>."],
+         ["GPU node", "vLLM pod", 60, "<b>Image pull</b>: a multi-GB serving image (P3.1)."],
+         ["GPU node", "vLLM pod", 90, "<b>Weight load</b>: 16 GB from S3 or a PVC into GPU memory (P3.7)."],
+         ["GPU node", "vLLM pod", 40, "<b>Warm-up</b>: profiling and CUDA graph capture (P2.6), then the readiness probe passes."],
+         ["vLLM pod", "client", 0.3, "Finally prefill and the first token. This one user's TTFT was minutes. Every stage above is a target in P3.6."]],
+  mitigated: [["client", "gateway #6", 0.01, "Same request, same zero-replica start."],
+              ["gateway #6", "queue", 0.01, "Queued, and the scale-up is triggered."],
+              ["queue", "autoscaler #3", 5, "A <b>warm pool</b> / overprovisioned placeholder pod means a GPU node is already up, so it is preempted for the real pod."],
+              ["GPU node", "vLLM pod", 2, "The image is <b>pre-pulled</b> on the node (a DaemonSet or a baked AMI)."],
+              ["GPU node", "vLLM pod", 20, "Weights come from the <b>node-local NVMe cache</b> / a streaming loader (P3.7) instead of S3."],
+              ["GPU node", "vLLM pod", 25, "Warm-up (graph capture) remains. Cached compilation artifacts can shrink it."],
+              ["vLLM pod", "client", 0.3, "First token. Minutes become under a minute. The cost: an idle warm GPU, which is a dollars-vs-TTFT decision you make with #2."]],
+};
+function build(mode) {
+  const plan = PLANS[mode], steps = [];
+  let t = 0;
+  steps.push({mode, k: -1, t: 0, caption: mode === "warm" ? "<b>Warm</b>: a Ready replica exists." : mode === "cold" ? "<b>Cold</b>: the GPU pool is scaled to zero to save money." : "<b>Cold, mitigated</b>: the same, with cold-start mitigations from P3.6/P3.7."});
+  plan.forEach((s, k) => { t += s[2]; steps.push({mode, k, t, caption: s[3] + ` <span class="kbd">t = ${t >= 60 ? (t / 60).toFixed(1) + " min" : t.toFixed(2) + " s"}</span>`}); });
+  return steps;
+}
+function draw(svg, s) {
+  const plan = PLANS[s.mode], xs = {};
+  COMPONENTS.forEach((c, i) => { xs[c] = 40 + i * 150; });
+  const active = new Set();
+  plan.slice(0, s.k + 1).forEach(p => { active.add(p[0]); active.add(p[1]); });
+  COMPONENTS.forEach(c => {
+    const on = active.has(c) || c === "client";
+    const skip = s.mode === "warm" && (c === "queue" || c === "autoscaler #3");
+    el("rect", {x: xs[c], y: 60, width: 130, height: 70, rx: 10, fill: skip ? css("--panel") : on ? css("--cell4") : css("--cell"), stroke: css("--line"), "stroke-dasharray": skip ? "5 4" : ""}, svg);
+    el("text", {x: xs[c] + 65, y: 100, "text-anchor": "middle", "font-size": 13}, svg, c);
+  });
+  if (s.k >= 0) {
+    const p = plan[s.k];
+    el("line", {x1: xs[p[0]] + 65, y1: 150, x2: xs[p[1]] + 65, y2: 150, stroke: css("--accent"), "stroke-width": 4}, svg);
+    el("circle", {cx: xs[p[1]] + 65, cy: 150, r: 7, fill: css("--accent")}, svg);
+  }
+  // timeline bar of stages so far
+  let x = 40;
+  const total = plan.reduce((a, p) => a + p[2], 0), W = 880;
+  el("text", {x: 40, y: 220, "font-size": 14}, svg, `time to first token: ${s.t >= 60 ? (s.t / 60).toFixed(1) + " min" : s.t.toFixed(2) + " s"}`);
+  plan.forEach((p, k) => {
+    const w = Math.max(3, W * p[2] / total);
+    el("rect", {x, y: 235, width: w - 1, height: 30, fill: k <= s.k ? (k === s.k ? css("--accent") : css("--cell3")) : css("--cell"), stroke: css("--line")}, svg);
+    x += w;
+  });
+  el("text", {x: 40, y: 290, "font-size": 12, class: "muted"}, svg, "bar = the stages of this scenario, proportional to their (illustrative) durations");
+}
+startAnimation({steps: build("warm"), draw});
+document.getElementById("mode").onchange = (e) => setSteps(build(e.target.value));
+</script>
+</main>
+</body>
+</html>

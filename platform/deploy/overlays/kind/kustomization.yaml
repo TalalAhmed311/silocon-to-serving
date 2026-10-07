@@ -1,0 +1,11 @@
+# T0: kind cluster with mockllm as the "GPU" backend.  kubectl apply -k platform/deploy/overlays/kind
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../base/gateway.yaml
+  - ../../base/mockllm.yaml
+configMapGenerator:
+  - name: gateway-config
+    namespace: s2s
+    files: [gateway.yaml]

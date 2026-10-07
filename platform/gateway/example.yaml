@@ -1,0 +1,30 @@
+# Example gateway config: two mockllm replicas + a vLLM backend for one model.
+# Tenant keys are stored as SHA-256 hashes:  python -c "import hashlib;print(hashlib.sha256(b'dev-key-1').hexdigest())"
+routing: least_outstanding
+max_attempts: 3
+retry_budget_ratio: 0.2
+backends:
+  - name: mock-a
+    url: http://127.0.0.1:8001
+    models: ["mock-llama-8b"]
+  - name: mock-b
+    url: http://127.0.0.1:8002
+    models: ["mock-llama-8b"]
+  - name: vllm-l4
+    url: http://127.0.0.1:8000
+    models: ["llama-8b-instruct"]
+    api_key_env: S2S_API_KEY       # the backend's key, read from the environment at runtime
+tenants:
+  - name: team-a
+    key_sha256: "5a5c7d63b6b8b0f8b1c3c9b3f3e1c1f8f6e53e5bb6b0b6bb7c0e7c6b6f6e0a1d"   # REPLACE with sha256 of your key
+    rps: 5
+    burst: 10
+    tokens_per_window: 2000000
+    window_s: 86400
+  - name: team-b
+    key_sha256: "REPLACE"
+    rps: 1
+    burst: 2
+    tokens_per_window: 100000
+    window_s: 86400
+    models: ["mock-llama-8b"]

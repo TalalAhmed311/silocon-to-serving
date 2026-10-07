@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>False sharing</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>False sharing</h1>
+<p class="sub">P0.3 — two cores increment two different counters. Packed on one 64-byte line, every write invalidates the other core's copy. Padded, they never interfere.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="False sharing"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="controls extra"><label>Layout <select id="mode"><option value="packed">packed: a and b on one line</option><option value="padded">padded: alignas(64), separate lines</option></select></label></div>
+<div class="legend"><span><i style="background:var(--cell4)"></i>M / E (owned)</span><span><i style="background:var(--cell2)"></i>S (shared)</span><span><i style="background:var(--cell3)"></i>I (invalid)</span><span><i style="background:var(--accent)"></i>write now</span></div>
+<script>
+function build(mode) {
+  const st = [];
+  // state per core per line: {L0:[state core0, state core1], L1:[...]}
+  let s = {L0:["I","I"], L1:["I","I"]}, msgs = 0, a = 0, b = 0;
+  const lineOf = (core) => mode === "packed" ? "L0" : (core === 0 ? "L0" : "L1");
+  st.push({s:JSON.parse(JSON.stringify(s)), w:-1, msg:"", msgs, a, b, caption: mode === "packed"
+    ? "Thread 0 on core 0 increments <code>a</code>. Thread 1 on core 1 increments <code>b</code>. <code>a</code> and <code>b</code> sit in the <b>same 64-byte line</b>."
+    : "With <code>alignas(64)</code>, <code>a</code> is in line L0 and <code>b</code> in line L1. The threads have no shared line."});
+  for (let k = 0; k < 8; k++) {
+    const core = k % 2, other = 1 - core, L = lineOf(core);
+    let msg = "", cap;
+    if (s[L][core] === "M" || s[L][core] === "E") {
+      cap = `Core ${core} writes ${core ? "b" : "a"}. It already owns ${L} (M), so this is an <b>L1 hit</b>, a few cycles.`;
+    } else {
+      const otherHas = s[L][other] !== "I";
+      msg = otherHas ? `core ${core} → core ${other}: invalidate ${L} (RFO)` : `core ${core} reads ${L} from memory for ownership`;
+      if (otherHas) msgs++;
+      s[L][other] = "I";
+      cap = otherHas
+        ? `Core ${core} writes ${core ? "b" : "a"}, but core ${other} holds ${L}. A <b>Read-For-Ownership</b> invalidates the other copy, and the line moves across the interconnect, costing tens to 100+ cycles. Coherence misses so far: <b>${msgs}</b>.`
+        : `Core ${core} writes ${core ? "b" : "a"}: the first touch fetches ${L} in the exclusive state.`;
+    }
+    s[L][core] = "M";
+    if (core === 0) a++; else b++;
+    st.push({s:JSON.parse(JSON.stringify(s)), w:core, L, msg, msgs, a, b, caption:cap});
+  }
+  st.push({s:JSON.parse(JSON.stringify(s)), w:-1, msg:"", msgs, a, b, caption: mode === "packed"
+    ? `After 8 writes: <b>${msgs} coherence misses</b>. Every write after the very first one bounced the line, even though the threads never touch each other's data. Switch to <i>padded</i>.`
+    : `After 8 writes: <b>0 coherence misses</b>. Each core keeps its own line in M, and every write after the first is an L1 hit.`});
+  return st;
+}
+function draw(svg, st) {
+  const fillOf = (x) => x === "M" || x === "E" ? css("--cell4") : x === "S" ? css("--cell2") : css("--cell3");
+  const mode = document.getElementById("mode").value;
+  [0,1].forEach(core => {
+    const x = 60 + core * 480;
+    el("rect", {x, y:30, width:360, height:250, rx:12, fill:"none", stroke:css("--line")}, svg);
+    el("text", {x:x+16, y:56, "font-size":16}, svg, `core ${core}  (thread ${core}: ${core ? "b" : "a"}++)`);
+    el("text", {x:x+16, y:84, "font-size":13, class:"muted"}, svg, "private L1 cache");
+    ["L0","L1"].forEach((L, k) => {
+      if (mode === "packed" && L === "L1") return;
+      const y = 104 + k * 80, state = st.s[L][core], writing = st.w === core && st.L === L;
+      el("rect", {x:x+16, y, width:328, height:60, rx:6, fill: writing ? css("--accent") : fillOf(state), stroke:css("--line")}, svg);
+      el("text", {x:x+28, y:y+24, "font-size":13}, svg, `line ${L}  state=${state}`);
+      const slots = mode === "packed" ? "[ a | b | · | · | · | · | · | · ]" : (L === "L0" ? "[ a | · | · | · | · | · | · | · ]" : "[ b | · | · | · | · | · | · | · ]");
+      el("text", {x:x+28, y:y+46, "font-size":12, class:"muted"}, svg, slots);
+    });
+  });
+  if (st.msg) {
+    el("line", {x1:430, y1:160, x2:530, y2:160, stroke:css("--bad"), "stroke-width":3}, svg);
+    el("text", {x:480, y:150, "text-anchor":"middle", "font-size":12}, svg, "⇄");
+    el("text", {x:480, y:320, "text-anchor":"middle", "font-size":14}, svg, st.msg);
+  }
+  el("text", {x:60, y:380, "font-size":15}, svg, `a = ${st.a}   b = ${st.b}   coherence misses = ${st.msgs}`);
+  el("text", {x:60, y:410, "font-size":13, class:"muted"}, svg, "MESI: a write needs the line in M/E, so every other copy must be invalidated first.");
+}
+startAnimation({steps: build("packed"), draw});
+document.getElementById("mode").onchange = (e) => setSteps(build(e.target.value));
+</script>
+</main>
+</body>
+</html>

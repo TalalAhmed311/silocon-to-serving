@@ -1,0 +1,8 @@
+owner              = "your-handle"
+budget_email       = "you@example.com"
+region             = "us-east-1"
+allowed_api_cidrs  = ["203.0.113.7/32"]   # your public IP: curl -s https://checkip.amazonaws.com
+gpu_instance_types = ["g6.xlarge"]
+gpu_capacity_type  = "ON_DEMAND"
+gpu_min            = 0
+gpu_max            = 2

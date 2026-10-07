@@ -1,0 +1,24 @@
+#!/bin/bash
+# Runs once at first boot. Installs the idle watchdog; everything else is in scripts/bootstrap.sh (run it yourself
+# over SSM so you can watch it).
+set -euo pipefail
+cat > /usr/local/bin/s2s-idle-watchdog <<'WD'
+#!/bin/bash
+# Stop the instance after N consecutive idle minutes: GPU util < 5% AND no active SSM session.
+IDLE_LIMIT=${idle_minutes}
+STATE=/var/run/s2s-idle-minutes
+util=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | sort -n | tail -1)
+sessions=$(pgrep -fc 'ssm-session-worker' || true)
+if [ "$${util:-0}" -lt 5 ] && [ "$${sessions:-0}" -eq 0 ]; then
+  n=$(( $(cat $STATE 2>/dev/null || echo 0) + 1 ))
+else
+  n=0
+fi
+echo $n > $STATE
+if [ "$n" -ge "$IDLE_LIMIT" ]; then
+  logger "s2s-idle-watchdog: idle for $n min, stopping"
+  shutdown -h now   # instance_initiated_shutdown_behavior = stop
+fi
+WD
+chmod +x /usr/local/bin/s2s-idle-watchdog
+echo '* * * * * root /usr/local/bin/s2s-idle-watchdog' > /etc/cron.d/s2s-idle-watchdog

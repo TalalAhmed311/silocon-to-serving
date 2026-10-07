@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grid → blocks → warps → SMs</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Grid → blocks → warps → SMs</h1>
+<p class="sub">How a launch of 10 blocks lands on a GPU with 4 SMs (2 resident blocks each), how a block splits into warps, and what a divergent branch does to one warp.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Grid → blocks → warps → SMs"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+const NB = 10, NSM = 4, SLOTS = 2;
+const STEPS = [];
+let resident = [...Array(NSM)].map(() => []), done = [], next = 0, t = 0;
+const snap = (caption, extra = {}) => STEPS.push({resident: resident.map(r => [...r]), done: [...done], next, caption, ...extra});
+snap("A launch <code>kernel&lt;&lt;&lt;10, 128&gt;&gt;&gt;</code>: 10 blocks of 128 threads. Blocks are <b>independent</b>, and the hardware may run them in any order, on any SM.");
+// fill
+for (let s = 0; s < NSM; s++) for (let k = 0; k < SLOTS; k++) resident[s].push(next++);
+snap("The block scheduler fills every SM up to its resource limit (here 2 blocks per SM, set by registers and shared memory: <b>occupancy</b>). Blocks 0–7 are resident, and 8–9 wait.");
+const finishOrder = [[1, 0], [3, 1], [0, 0], [2, 1]];
+finishOrder.forEach(([sm, slot], k) => {
+  const b = resident[sm][slot];
+  done.push(b);
+  if (next < NB) { resident[sm][slot] = next++; snap(`Block ${b} finishes on SM ${sm}, and block ${resident[sm][slot]} immediately takes its place. There's no global order and no way for blocks to wait on each other.`); }
+  else { resident[sm].splice(slot, 1); snap(`Block ${b} finishes. No blocks are left to schedule, so SMs go idle as the tail drains. That's the "tail effect": a grid of 10 blocks on 8 slots wastes most of the second wave.`); }
+});
+snap("Zoom into one block: 128 threads = <b>4 warps</b> of 32 consecutive threads (threadIdx.x 0–31, 32–63, …). The warp is what the SM's schedulers issue: one instruction for 32 lanes.", {zoom: "warps"});
+snap("<code>if (threadIdx.x % 2) A(); else B();</code>: within warp 0, odd and even lanes disagree. The warp runs <b>A with the even lanes masked off</b>…", {zoom: "div", phase: 1});
+snap("…then <b>B with the odd lanes masked off</b>. Both paths cost full warp time, so throughput is halved. A condition that's the same for all 32 lanes (e.g. on <code>threadIdx.x / 32</code>) costs nothing.", {zoom: "div", phase: 2});
+function draw(svg, s) {
+  if (!s.zoom) {
+    el("text", {x: 20, y: 30, "font-size": 14, "font-weight": 600}, svg, "grid (10 blocks)");
+    for (let b = 0; b < NB; b++) {
+      const isRes = s.resident.some(r => r.includes(b)), isDone = s.done.includes(b);
+      const fill = isDone ? css("--cell4") : isRes ? css("--cell2") : css("--panel");
+      const x = 20 + (b % 5) * 62, y = 45 + Math.floor(b / 5) * 62;
+      el("rect", {x, y, width: 54, height: 54, rx: 6, fill, stroke: css("--line")}, svg);
+      el("text", {x: x + 27, y: y + 33, "text-anchor": "middle", "font-size": 14}, svg, `B${b}`);
+    }
+    [["--panel", "waiting"], ["--cell2", "resident"], ["--cell4", "finished"]].forEach(([v, l], k) => {
+      el("rect", {x: 20 + k * 100, y: 190, width: 14, height: 14, fill: css(v), stroke: css("--line")}, svg);
+      el("text", {x: 40 + k * 100, y: 202, "font-size": 12}, svg, l);
+    });
+    for (let m = 0; m < NSM; m++) {
+      const x = 380 + (m % 2) * 290, y = 40 + Math.floor(m / 2) * 230;
+      el("rect", {x, y, width: 270, height: 210, rx: 10, fill: css("--panel"), stroke: css("--line")}, svg);
+      el("text", {x: x + 12, y: y + 22, "font-size": 13, "font-weight": 600}, svg, `SM ${m}`);
+      for (let k = 0; k < SLOTS; k++) {
+        const b = s.resident[m][k];
+        el("rect", {x: x + 15 + k * 125, y: y + 40, width: 115, height: 150, rx: 8,
+          fill: b === undefined ? css("--bg") : css("--cell2"), stroke: css("--line"), "stroke-dasharray": b === undefined ? "4 3" : ""}, svg);
+        el("text", {x: x + 72 + k * 125, y: y + 120, "text-anchor": "middle", "font-size": 15}, svg, b === undefined ? "free" : `B${b}`);
+      }
+    }
+    return;
+  }
+  el("text", {x: 20, y: 30, "font-size": 14, "font-weight": 600}, svg, s.zoom === "warps" ? "one block = 4 warps × 32 lanes" : "warp 0 executing a divergent branch");
+  const warps = s.zoom === "warps" ? 4 : 1;
+  for (let w = 0; w < warps; w++) {
+    el("text", {x: 20, y: 80 + w * 70, "font-size": 12}, svg, `warp ${w}`);
+    for (let l = 0; l < 32; l++) {
+      let fill = css("--cell2");
+      if (s.zoom === "div") fill = (s.phase === 1 ? l % 2 === 1 : l % 2 === 0) ? css("--accent") : css("--cell");
+      el("rect", {x: 80 + l * 26, y: 60 + w * 70, width: 22, height: 34, rx: 3, fill, stroke: css("--line")}, svg);
+      if (w === 0) el("text", {x: 91 + l * 26, y: 110 + (s.zoom === "div" ? 0 : -50 + 50), "text-anchor": "middle", "font-size": 9, class: "muted"}, svg, String(w * 32 + l));
+    }
+  }
+  if (s.zoom === "div") {
+    el("text", {x: 80, y: 160, "font-size": 14}, svg, s.phase === 1 ? "pass 1: A()  — odd lanes active, even lanes masked" : "pass 2: B()  — even lanes active, odd lanes masked");
+    el("rect", {x: 80, y: 190, width: 400, height: 26, fill: s.phase >= 1 ? css("--accent") : css("--panel")}, svg);
+    el("text", {x: 90, y: 208, "font-size": 12, fill: css("--bg")}, svg, "A (16 useful lanes)");
+    if (s.phase === 2) {
+      el("rect", {x: 480, y: 190, width: 400, height: 26, fill: css("--accent2")}, svg);
+      el("text", {x: 490, y: 208, "font-size": 12, fill: css("--bg")}, svg, "B (16 useful lanes)");
+    }
+    el("text", {x: 80, y: 240, "font-size": 12, class: "muted"}, svg, "time →  (a warp-uniform branch would take only one of the two bars)");
+  }
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

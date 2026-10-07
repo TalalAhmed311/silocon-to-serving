@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIMD lanes</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>SIMD lanes</h1>
+<p class="sub">P0.4 — c[i] = a[i] + b[i]: scalar does one element per instruction; AVX2 does 8. Then: why a load that splits two cache lines costs more.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="SIMD lanes"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="legend"><span><i style="background:var(--accent)"></i>this instruction</span><span><i style="background:var(--cell4)"></i>done</span><span><i style="background:var(--cell3)"></i>second cache line</span></div>
+<script>
+const N = 16;
+const STEPS = [];
+STEPS.push({part:"intro", caption:"Two arrays of 16 floats. <b>Scalar</b> code issues one add per element: 16 instructions."});
+for (let i = 0; i < N; i++) STEPS.push({part:"scalar", i, caption:`Scalar instruction ${i+1}/16: <code>c[${i}] = a[${i}] + b[${i}]</code>.`});
+STEPS.push({part:"simd", v:-1, caption:"<b>AVX2</b>: a 256-bit register holds 8 floats. <code>_mm256_add_ps</code> adds all 8 lanes in one instruction, at roughly the cost of one scalar add."});
+STEPS.push({part:"simd", v:0, caption:"Instruction 1/2: lanes 0–7 in one <code>vaddps</code>."});
+STEPS.push({part:"simd", v:1, caption:"Instruction 2/2: lanes 8–15. 16 elements in 2 instructions, 8× fewer. If the arrays don't fit in cache, memory bandwidth caps the speedup (see the roofline)."});
+STEPS.push({part:"align", off:0, caption:"Memory in 64-byte cache lines (16 floats each). A 32-byte load starting at float 0 sits <b>inside one line</b>: one cache access."});
+STEPS.push({part:"align", off:4, caption:"Start at float 4 (16 bytes in): still inside one line. Being unaligned to 32 B is usually free on modern cores."});
+STEPS.push({part:"align", off:12, caption:"Start at float 12 (48 bytes in): the 8 floats span <b>two lines</b>, so the load unit must access both. That <b>split</b> is the real cost of misalignment. Example 01 measures it on your CPU."});
+function cells(svg, y, label, vals, color) {
+  el("text", {x:20, y:y+22, "font-size":14}, svg, label);
+  vals.forEach((v, k) => {
+    el("rect", {x:70+k*54, y, width:50, height:34, rx:4, fill:color(k), stroke:css("--line")}, svg);
+    el("text", {x:95+k*54, y:y+22, "text-anchor":"middle", "font-size":12}, svg, v);
+  });
+}
+function draw(svg, s) {
+  const a = [...Array(N).keys()], b = a.map(() => 10);
+  if (s.part === "align") {
+    el("text", {x:20, y:40, "font-size":15}, svg, "two 64-byte cache lines (32 floats); highlighted: one 8-float (32 B) load");
+    for (let k = 0; k < 32; k++) {
+      const inLoad = k >= s.off && k < s.off + 8, line2 = k >= 16;
+      el("rect", {x:20+k*29, y:70, width:26, height:60, rx:3, fill: inLoad ? css("--accent") : (line2 ? css("--cell3") : css("--cell")), stroke:css("--line")}, svg);
+      el("text", {x:33+k*29, y:105, "text-anchor":"middle", "font-size":10}, svg, k);
+    }
+    el("line", {x1:20+16*29-2, y1:60, x2:20+16*29-2, y2:140, stroke:css("--bad"), "stroke-width":2, "stroke-dasharray":"5 3"}, svg);
+    el("text", {x:20, y:170, "font-size":14}, svg, s.off + 8 > 16 && s.off < 16 ? "this load touches 2 lines → split penalty" : "this load touches 1 line");
+    return;
+  }
+  cells(svg, 40, "a", a, () => css("--cell"));
+  cells(svg, 90, "b", b, () => css("--cell"));
+  const done = (k) => (s.part === "scalar" && k < s.i) || (s.part === "simd" && Math.floor(k / 8) < s.v);
+  const now = (k) => (s.part === "scalar" && k === s.i) || (s.part === "simd" && Math.floor(k / 8) === s.v);
+  cells(svg, 160, "c", a.map((x, k) => (done(k) || now(k)) ? x + 10 : "?"), (k) => now(k) ? css("--accent") : done(k) ? css("--cell4") : css("--cell"));
+  if (s.part === "simd") [0, 1].forEach(r => el("rect", {x:66+r*8*54, y:150, width:8*54, height:54, rx:8, fill:"none", stroke:css("--accent2"), "stroke-width":2}, svg));
+  const count = s.part === "scalar" ? s.i + 1 : s.part === "simd" ? Math.max(0, s.v + 1) : 0;
+  el("text", {x:20, y:260, "font-size":15}, svg, `instructions issued: ${count}   (${s.part === "simd" ? "AVX2, 8 lanes" : "scalar, 1 lane"})`);
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

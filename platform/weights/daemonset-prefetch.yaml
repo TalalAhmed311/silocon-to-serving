@@ -1,0 +1,37 @@
+# #5: warm the node-local NVMe cache on every GPU node before a replica needs it.
+# An initContainer-style prefetch (runs the cache once, then sleeps) — the vLLM pod mounts the same hostPath read-only
+# and starts with --model /weights/<model>/<version>. Credentials: the ServiceAccount maps to an IAM role (IRSA/Pod
+# Identity) with s3:GetObject on the registry prefix only. g6 instance-store NVMe must be formatted/mounted by the node
+# bootstrap (UNVERIFIED for the AL2023 NVIDIA AMI: check whether it RAID0-mounts instance stores automatically).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: { name: weights-prefetch, namespace: s2s }
+spec:
+  selector: { matchLabels: { app: weights-prefetch } }
+  template:
+    metadata: { labels: { app: weights-prefetch } }
+    spec:
+      serviceAccountName: weights-reader
+      nodeSelector: { s2s/pool: gpu }
+      tolerations: [{ key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }]
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      initContainers:
+        - name: prefetch
+          image: ghcr.io/talalahmed311/s2s-platform:TODO-pin-digest   # env/Dockerfile.platform, pinned by digest
+          command: ["python", "-c", "import sys; sys.path.insert(0,'/app/platform'); from weights.cache import WeightCache, S3Store; import os; WeightCache('/weights', int(os.environ['MAX_BYTES']), S3Store(os.environ['REGISTRY'])).get(os.environ['MODEL'], os.environ['VERSION'])"]
+          env:
+            - { name: REGISTRY, value: "s3://REPLACE-registry-bucket/models" }
+            - { name: MODEL, value: "llama3-8b" }
+            - { name: VERSION, value: "REPLACE" }
+            - { name: MAX_BYTES, value: "214748364800" }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources: { requests: { cpu: "2", memory: 2Gi }, limits: { memory: 4Gi } }
+          volumeMounts: [{ name: weights, mountPath: /weights }]
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { memory: 32Mi } }
+      volumes:
+        - name: weights
+          hostPath: { path: /mnt/nvme/weights, type: DirectoryOrCreate }

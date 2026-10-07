@@ -1,0 +1,16 @@
+# Dockerfile.platform — the T0 platform services (gateway #6, mockllm) as one small image for kind/K8s labs.
+# Build: docker build -f env/Dockerfile.platform -t s2s-platform:dev .
+# Run:   docker run --rm -p 8001:8001 s2s-platform:dev uvicorn mockllm.server:app --app-dir platform --host 0.0.0.0 --port 8001
+FROM python:3.12-slim
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev && useradd -u 10001 -m app
+# boto3 only for the C1 failover prober's CloudWatch push (not in the lockfile: the T0 code never needs it)
+RUN uv pip install --python /app/.venv/bin/python "boto3>=1.35"
+COPY platform ./platform
+COPY course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/gpu_specs.yaml course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/specs.py \
+     ./course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/
+ENV PATH=/app/.venv/bin:$PATH PYTHONPATH=/app/platform
+USER 10001
+CMD ["uvicorn", "mockllm.server:app", "--app-dir", "platform", "--host", "0.0.0.0", "--port", "8001"]

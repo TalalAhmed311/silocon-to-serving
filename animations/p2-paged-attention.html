@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PagedAttention</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>PagedAttention</h1>
+<p class="sub">P2.3 / P6.3 — the KV cache in fixed-size blocks. Each sequence has a block table (logical → physical). A shared prefix maps to the same physical blocks (ref count > 1); appending to a shared block triggers copy-on-write.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="PagedAttention"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="legend"><span><i style="background:var(--cell2)"></i>seq A</span><span><i style="background:var(--cell4)"></i>seq B</span><span><i style="background:var(--accent2)"></i>shared (ref count 2)</span><span><i style="background:var(--cell)"></i>free</span></div>
+<script>
+// physical pool of 12 blocks, block size 4 tokens. Each step = full state.
+const S = (caption, phys, tables) => ({caption, phys, tables});
+const free = () => Array(12).fill(null);
+function snap(map) { const p = free(); for (const [i, v] of Object.entries(map)) p[i] = v; return p; }
+const STEPS = [
+  S("A pool of 12 physical KV blocks, 4 tokens each. Nothing is allocated yet. With contiguous allocation, every request would reserve <code>max_model_len</code> up front.", free(), {}),
+  S("Request A arrives with a 10-token prompt: ⌈10/4⌉ = 3 blocks, allocated <b>on demand</b> from the free list (not contiguous). A's block table maps logical 0,1,2 to physical 0,5,2.", snap({0:{o:"A",r:1,f:4},5:{o:"A",r:1,f:4},2:{o:"A",r:1,f:2}}), {A:[0,5,2]}),
+  S("A decodes 2 tokens. They fill logical block 2 (now 4/4), so no new block is needed yet. Waste is at most one partially filled block per sequence.", snap({0:{o:"A",r:1,f:4},5:{o:"A",r:1,f:4},2:{o:"A",r:1,f:4}}), {A:[0,5,2]}),
+  S("Request B has the <b>same first 8 tokens</b> as A (a shared system prompt). The prefix cache hashes A's full blocks 0 and 5, and B's first two blocks hash the same: <b>hit</b>. B maps them (ref count 2) and skips their prefill.", snap({0:{o:"S",r:2,f:4},5:{o:"S",r:2,f:4},2:{o:"A",r:1,f:4},7:{o:"B",r:1,f:3}}), {A:[0,5,2], B:[0,5,7]}),
+  S("B's 3rd logical block differs from A's, so it gets its own physical block 7. Only that block needed prefill compute.", snap({0:{o:"S",r:2,f:4},5:{o:"S",r:2,f:4},2:{o:"A",r:1,f:4},7:{o:"B",r:1,f:4}}), {A:[0,5,2], B:[0,5,7]}),
+  S("Beam/parallel sampling: A forks into A′, which shares all of A's blocks (ref counts go up). No copying happens until someone <b>writes</b>.", snap({0:{o:"S",r:3,f:4},5:{o:"S",r:3,f:4},2:{o:"S",r:2,f:4},7:{o:"B",r:1,f:4}}), {A:[0,5,2], "A′":[0,5,2], B:[0,5,7]}),
+  S("A′ appends a token whose position falls in a shared block. <b>Copy-on-write</b>: allocate block 9, copy block 2's contents, point A′ at it, and drop the ref count of block 2.", snap({0:{o:"S",r:3,f:4},5:{o:"S",r:3,f:4},2:{o:"A",r:1,f:4},7:{o:"B",r:1,f:4},9:{o:"A′",r:1,f:4}}), {A:[0,5,2], "A′":[0,5,9], B:[0,5,7]}),
+  S("A finishes and frees its blocks: ref counts drop. Block 2 hits 0 and returns to the free list. Blocks 0 and 5 survive (still used by A′ and B) and stay in the prefix cache for future hits until evicted (LRU).", snap({0:{o:"S",r:2,f:4},5:{o:"S",r:2,f:4},7:{o:"B",r:1,f:4},9:{o:"A′",r:1,f:4}}), {"A′":[0,5,9], B:[0,5,7]}),
+];
+function color(o) { return o === "S" ? css("--accent2") : o === "A" || o === "A′" ? css("--cell2") : o === "B" ? css("--cell4") : css("--cell"); }
+function draw(svg, s) {
+  el("text", {x:20, y:30, "font-size":15}, svg, "physical KV blocks (GPU memory)");
+  s.phys.forEach((b, i) => {
+    const x = 20 + (i % 6) * 150, y = 45 + Math.floor(i / 6) * 90;
+    el("rect", {x, y, width:140, height:76, rx:8, fill: b ? color(b.o) : css("--cell"), stroke:css("--line")}, svg);
+    el("text", {x:x + 8, y:y + 20, "font-size":12}, svg, `block ${i}`);
+    if (b) {
+      el("text", {x:x + 8, y:y + 42, "font-size":12}, svg, `${b.o === "S" ? "shared" : "owner " + b.o}`);
+      el("text", {x:x + 8, y:y + 62, "font-size":12}, svg, `ref=${b.r}  fill ${b.f}/4`);
+    } else el("text", {x:x + 8, y:y + 48, "font-size":12, class:"muted"}, svg, "free");
+  });
+  el("text", {x:20, y:260, "font-size":15}, svg, "block tables (logical → physical)");
+  Object.entries(s.tables).forEach(([seq, tbl], r) => {
+    el("text", {x:20, y:295 + r * 40, "font-size":14}, svg, `seq ${seq}:`);
+    tbl.forEach((p, k) => {
+      el("rect", {x:110 + k * 110, y:275 + r * 40, width:100, height:30, rx:4, fill:css("--panel"), stroke:css("--line")}, svg);
+      el("text", {x:160 + k * 110, y:295 + r * 40, "text-anchor":"middle", "font-size":12}, svg, `L${k} → P${p}`);
+    });
+  });
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

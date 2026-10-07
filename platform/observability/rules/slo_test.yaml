@@ -1,0 +1,37 @@
+# promtool unit tests: `promtool test rules platform/observability/rules/slo_test.yaml` (T0; needs the promtool binary
+# from a Prometheus release). Synthetic series: 1000 requests/5min, of which a growing share exceed 2 s.
+rule_files:
+  - slo.yaml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # cumulative counts: 100 req/min total; le="2" grows by 80/min -> 20% of requests are slow (way over a 1% budget)
+      - series: 'vllm:time_to_first_token_seconds_count'
+        values: '0+100x120'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="2"}'
+        values: '0+80x120'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '0+100x120'
+    promql_expr_test:
+      - expr: s2s:ttft_slo_errors:ratio_rate5m
+        eval_time: 30m
+        exp_samples:
+          - value: 0.2
+    alert_rule_test:
+      - alertname: TTFTBudgetFastBurn
+        eval_time: 70m
+        exp_alerts:
+          - exp_labels: { severity: page }
+            exp_annotations: { summary: "TTFT SLO burning >14.4x budget (1h and 5m windows)" }
+  - interval: 1m
+    input_series:
+      # healthy: 0.5% slow -> no page
+      - series: 'vllm:time_to_first_token_seconds_count'
+        values: '0+1000x120'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="2"}'
+        values: '0+995x120'
+    alert_rule_test:
+      - alertname: TTFTBudgetFastBurn
+        eval_time: 70m
+        exp_alerts: []

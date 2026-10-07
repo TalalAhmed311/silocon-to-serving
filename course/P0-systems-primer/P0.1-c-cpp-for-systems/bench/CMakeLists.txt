@@ -1,0 +1,18 @@
+# Transpose benchmark. Times: plain copy (the "peak"), naive transpose, and the exercise-4 transpose.
+#   cmake -S . -B ../build/bench -DCMAKE_BUILD_TYPE=Release && cmake --build ../build/bench -j
+#   ./../build/bench/transpose_bench          (add -DS2S_USE_SOLUTIONS=ON to time the reference solution)
+cmake_minimum_required(VERSION 3.20)
+project(p0_1_bench CXX)
+set(CMAKE_CXX_STANDARD 20)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+option(S2S_USE_SOLUTIONS "Bench the reference solution instead of your starter" OFF)
+if(S2S_USE_SOLUTIONS)
+  set(impl_dir ${CMAKE_CURRENT_SOURCE_DIR}/../exercises/solutions/04-blocked-transpose)
+else()
+  set(impl_dir ${CMAKE_CURRENT_SOURCE_DIR}/../exercises/04-blocked-transpose)
+endif()
+add_executable(transpose_bench transpose_bench.cpp)
+target_include_directories(transpose_bench PRIVATE ${impl_dir} ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/include)
+target_compile_options(transpose_bench PRIVATE -O3 -march=native)

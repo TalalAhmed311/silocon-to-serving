@@ -1,0 +1,4 @@
+# Quantization tooling for P2.5 (#7). GPU (T2) for calibration of 7-8B models.
+llmcompressor==0.14.0
+gptqmodel==7.5.0
+lm_eval==0.4.13

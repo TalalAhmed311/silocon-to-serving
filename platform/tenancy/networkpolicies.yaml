@@ -1,0 +1,50 @@
+# #8: network isolation for the s2s namespace. Default deny; then allow only the paths the platform needs.
+# Requires a CNI that enforces NetworkPolicy: kind's default kindnet does (since kind v0.24, UNVERIFIED — test it with
+# exercise 1); on EKS enable the VPC CNI's network policy agent (enableNetworkPolicy, UNVERIFIED flag name) or use Calico/Cilium.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: s2s }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# DNS for everyone
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: s2s }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }, podSelector: { matchLabels: { k8s-app: kube-dns } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+# gateway: ingress from the ingress controller namespace only; egress to the model backends
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: gateway, namespace: s2s }
+spec:
+  podSelector: { matchLabels: { app: gateway } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress } } }]
+      ports: [{ port: 9000 }]
+  egress:
+    - to: [{ podSelector: { matchLabels: { s2s/role: backend } } }]
+      ports: [{ port: 8000 }, { port: 8001 }]
+---
+# backends: only the gateway may call them; Prometheus may scrape; egress only to HTTPS (HF / S3 for weights)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: backends, namespace: s2s }
+spec:
+  podSelector: { matchLabels: { s2s/role: backend } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: gateway } } }]
+      ports: [{ port: 8000 }, { port: 8001 }]
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }]
+      ports: [{ port: 8000 }, { port: 8001 }]
+  egress:
+    - to: [{ ipBlock: { cidr: 0.0.0.0/0, except: [169.254.169.254/32, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16] } }]
+      ports: [{ protocol: TCP, port: 443 }]   # tighten further with an egress proxy or VPC endpoints; blocks IMDS

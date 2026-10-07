@@ -1,0 +1,18 @@
+# kube-prometheus-stack values for the course cluster (chart version pinned in infra/aws/eks/addons.sh; UNVERIFIED keys —
+# check the chart's values.yaml at that version).
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # Pick up PodMonitors/ServiceMonitors/PrometheusRules from any namespace, not only the chart's own release label.
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources: { requests: { cpu: 500m, memory: 2Gi }, limits: { memory: 4Gi } }
+grafana:
+  adminPassword: ""                  # set via a Secret (grafana.admin.existingSecret), never here
+  admin:
+    existingSecret: grafana-admin
+  sidecar:
+    dashboards: { enabled: true, label: grafana_dashboard, searchNamespace: ALL }
+alertmanager:
+  enabled: true

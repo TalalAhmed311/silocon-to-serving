@@ -1,0 +1,15 @@
+# Expose the gateway through an NLB that only your client CIDRs can reach. The gateway still requires a tenant key on
+# every inference request. Never add 0.0.0.0/0 here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: s2s
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+    - 203.0.113.10/32        # REPLACE with your client / load-generator IPs

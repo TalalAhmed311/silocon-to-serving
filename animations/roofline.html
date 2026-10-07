@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roofline</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Roofline</h1>
+<p class="sub">P0.4 / P1.4 — attainable FLOP/s = min(peak, intensity × bandwidth). Drag the intensity slider, or step through common kernels.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Roofline"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<div class="controls extra">
+  <label>Machine <select id="mach"></select></label>
+  <label>Peak GFLOP/s <input id="P" type="number" min="1" step="any" style="width:110px"></label>
+  <label>Bandwidth GB/s <input id="B" type="number" min="1" step="any" style="width:100px"></label>
+  <label>Intensity <input id="I" type="range" min="-2" max="3.5" step="0.01" value="0"><span id="Iv"></span></label>
+</div>
+<p class="sub">GPU presets are vendor datasheet values for dense FP16/BF16 tensor throughput and HBM bandwidth, quoted from memory and <b>UNVERIFIED</b>. Check them against <code>course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/gpu_specs.yaml</code> and the cited whitepapers. For your laptop, type in the numbers from <code>02_fma_peak</code> and <code>03_stream</code>.</p>
+<script>
+const MACH = {
+  "laptop (enter your measured numbers)": {P: 400, B: 50, prec: "fp32"},
+  "NVIDIA T4 (datasheet, UNVERIFIED)": {P: 65000, B: 320, prec: "fp16 tensor"},
+  "NVIDIA L4 (datasheet, UNVERIFIED)": {P: 121000, B: 300, prec: "fp16 tensor, dense"},
+  "NVIDIA L40S (datasheet, UNVERIFIED)": {P: 362000, B: 864, prec: "fp16 tensor, dense"},
+  "NVIDIA A100 80GB SXM (datasheet, UNVERIFIED)": {P: 312000, B: 2039, prec: "bf16 tensor, dense"},
+  "NVIDIA H100 SXM (datasheet, UNVERIFIED)": {P: 989000, B: 3350, prec: "bf16 tensor, dense"},
+};
+const sel = document.getElementById("mach");
+Object.keys(MACH).forEach(k => { const o = document.createElement("option"); o.textContent = k; sel.appendChild(o); });
+const P = document.getElementById("P"), B = document.getElementById("B"), I = document.getElementById("I");
+function loadMach() { const m = MACH[sel.value]; P.value = m.P; B.value = m.B; }
+loadMach();
+// Kernel tour. Intensities: fp32 kernels count 4 B/elem; LLM decode with fp16 weights: ~1 FLOP/byte per sequence in the batch.
+const STEPS = [
+  {I: 1/12, name: "vector add (fp32)", caption: "<b>Vector add</b>: 1 FLOP per 12 bytes. It is far left of the ridge, so <b>memory-bound</b> on every machine ever built."},
+  {I: 0.25, name: "dot product (fp32)", caption: "<b>Dot product</b>: 2 FLOPs per 8 bytes = 0.25. Still the bandwidth slope."},
+  {I: 1, name: "LLM decode, batch 1 (fp16)", caption: "<b>LLM decode, batch 1, fp16 weights</b>: each 2-byte weight is used for one multiply-add (2 FLOPs), so I ≈ 1. That is why batch-1 decode speed ≈ bandwidth ÷ model bytes (P1.4)."},
+  {I: 8, name: "LLM decode, batch 8", caption: "<b>Batch 8</b>: each weight loaded once serves 8 sequences, so I ≈ 8. 8× the FLOP/s for the same bytes. This is why serving engines batch (P2.3)."},
+  {I: 64, name: "LLM decode, batch 64", caption: "<b>Batch 64</b>: I ≈ 64. On a laptop CPU this is past the ridge, but on a GPU (ridge ~100–400) it is still memory-bound."},
+  {I: 4096/3, name: "prefill / matmul n=4096 (fp16)", caption: "<b>Prefill or a big square GEMM</b> (n=4096, fp16): I ≈ n/3 ≈ 1365. <b>Compute-bound</b>: now tensor-core FLOPs are the limit, not HBM."},
+];
+function draw(svg, s, idx) {
+  const peak = +P.value, bw = +B.value;
+  let Ival = Math.pow(10, +I.value);
+  if (draw.lastIdx !== idx) { I.value = Math.log10(s.I); Ival = s.I; draw.lastIdx = idx; }
+  document.getElementById("Iv").textContent = Ival.toFixed(Ival < 1 ? 3 : 1) + " FLOP/B";
+  const W = 960, H = 470, L = 80, R = 30, T = 30, Bm = 60;
+  const xmin = -2, xmax = 3.5, ymax = Math.log10(peak) + 0.6, ymin = ymax - 6;
+  const X = (i) => L + (Math.log10(i) - xmin) / (xmax - xmin) * (W - L - R);
+  const Y = (f) => T + (ymax - Math.log10(f)) / (ymax - ymin) * (H - T - Bm);
+  // grid
+  for (let e = Math.ceil(xmin); e <= xmax; e++) { el("line", {x1:X(10**e), y1:T, x2:X(10**e), y2:H-Bm, stroke:css("--line")}, svg); el("text", {x:X(10**e), y:H-Bm+20, "text-anchor":"middle", "font-size":12, class:"muted"}, svg, "1e" + e); }
+  for (let e = Math.ceil(ymin); e <= ymax; e++) { el("line", {x1:L, y1:Y(10**e), x2:W-R, y2:Y(10**e), stroke:css("--line")}, svg); el("text", {x:L-8, y:Y(10**e)+4, "text-anchor":"end", "font-size":12, class:"muted"}, svg, "1e" + e); }
+  el("text", {x:(L+W-R)/2, y:H-15, "text-anchor":"middle", "font-size":13}, svg, "arithmetic intensity (FLOP / byte)");
+  el("text", {x:18, y:(T+H-Bm)/2, "font-size":13, transform:`rotate(-90 18 ${(T+H-Bm)/2})`, "text-anchor":"middle"}, svg, "GFLOP/s");
+  // roof
+  const ridge = peak / bw, pts = [];
+  for (let k = 0; k <= 200; k++) { const i = 10 ** (xmin + (xmax - xmin) * k / 200); pts.push(`${X(i)},${Y(Math.min(peak, i * bw))}`); }
+  el("polyline", {points: pts.join(" "), fill:"none", stroke:css("--accent"), "stroke-width":3}, svg);
+  if (Math.log10(ridge) > xmin && Math.log10(ridge) < xmax) {
+    el("line", {x1:X(ridge), y1:T, x2:X(ridge), y2:H-Bm, stroke:css("--muted"), "stroke-dasharray":"4 4"}, svg);
+    el("text", {x:X(ridge)+6, y:T+16, "font-size":12, class:"muted"}, svg, `ridge ${ridge.toFixed(1)} FLOP/B`);
+  }
+  // kernel point
+  const att = Math.min(peak, Ival * bw), memb = Ival < ridge;
+  el("circle", {cx:X(Ival), cy:Y(att), r:9, fill: memb ? css("--accent2") : css("--ok")}, svg);
+  el("text", {x:X(Ival)+14, y:Y(att)-10, "font-size":13}, svg, `${s.name}: ${att >= 1000 ? (att/1000).toFixed(1) + " TFLOP/s" : att.toFixed(1) + " GFLOP/s"} (${memb ? "memory" : "compute"}-bound, ${(100*att/peak).toFixed(1)}% of peak)`);
+}
+startAnimation({steps: STEPS, draw});
+sel.onchange = () => { loadMach(); rerender(); };
+[P, B].forEach(e => e.oninput = () => rerender());
+I.oninput = () => rerender();
+</script>
+</main>
+</body>
+</html>

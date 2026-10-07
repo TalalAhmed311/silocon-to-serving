@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shared-memory tiling and bank conflicts</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Shared-memory tiling and bank conflicts</h1>
+<p class="sub">Tiled matmul: load an A tile and a B tile into shared memory, sync, compute from on-chip copies. Then: why reading a 32×32 tile by column needs +1 padding.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Shared-memory tiling and bank conflicts"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+const T = 4;  // a 4×4-tile view of the matmul for the first part
+const STEPS = [
+  {part: "mm", k: -1, caption: "C = A·B with tiles. Each block owns one C tile (orange) and loops over k-tiles. Without tiling, every thread re-reads a full row of A and a full column of B from global memory."},
+  {part: "mm", k: 0, load: true, caption: "k-tile 0: the block <b>cooperatively loads</b> one A tile and one B tile into shared memory (each thread loads one element, coalesced). Then <code>__syncthreads()</code>: nobody computes until the whole tile has landed."},
+  {part: "mm", k: 0, load: false, caption: "Each thread accumulates its C element from the <b>shared</b> tiles: TILE multiply-adds per element loaded from global memory. Then <code>__syncthreads()</code> again, before the next load overwrites the tiles."},
+  {part: "mm", k: 1, load: true, caption: "k-tile 1: load the next pair of tiles…"},
+  {part: "mm", k: 1, load: false, caption: "…accumulate. Global traffic drops by a factor of TILE. That's P5.6 rung 3, and the arithmetic intensity grows with the tile size."},
+  {part: "bank", pad: 0, caption: "Shared memory = <b>32 banks</b>, 4 B wide: word w lives in bank w mod 32. A float tile[32][32] puts element (r, c) in bank c. Reading a <b>row</b> (lane i → tile[k][i]) hits 32 different banks: one pass."},
+  {part: "bank", pad: 0, col: true, caption: "Reading a <b>column</b> (lane i → tile[i][k], as in a transposed read): every lane hits bank k. That's a <b>32-way conflict</b>, served in 32 passes."},
+  {part: "bank", pad: 1, col: true, caption: "Declare tile[32][<b>33</b>]: row i now starts at word 33i, so (i, k) is in bank (i + k) mod 32. The column read spreads over all 32 banks: one pass again, at the cost of one unused word per row."},
+];
+function drawMM(svg, s) {
+  const cs = 28, ax = 40, ay = 140, bx = 230, by = 20, cx = 230, cy = 140;
+  const grid = (x0, y0, label, hi) => {
+    el("text", {x: x0, y: y0 - 6, "font-size": 12}, svg, label);
+    for (let r = 0; r < T; r++) for (let c = 0; c < T; c++) {
+      const h = hi(r, c);
+      el("rect", {x: x0 + c * cs, y: y0 + r * cs, width: cs - 2, height: cs - 2, fill: h ? h : css("--panel"), stroke: css("--line")}, svg);
+    }
+  };
+  const k = s.k;
+  grid(ax, ay, "A", (r, c) => r === 1 && c === k ? css("--cell2") : null);
+  grid(bx, by - 0 + 0, "B", (r, c) => c === 2 && r === k ? css("--cell2") : null);
+  grid(cx, cy, "C", (r, c) => r === 1 && c === 2 ? css("--accent2") : null);
+  // shared memory panel
+  el("rect", {x: 420, y: 120, width: 300, height: 170, rx: 10, fill: css("--panel"), stroke: css("--line")}, svg);
+  el("text", {x: 432, y: 142, "font-size": 13, "font-weight": 600}, svg, "shared memory (per block)");
+  if (k >= 0) {
+    el("rect", {x: 440, y: 160, width: 110, height: 110, fill: css("--cell2"), stroke: css("--line")}, svg);
+    el("text", {x: 495, y: 220, "text-anchor": "middle", "font-size": 12}, svg, `As (k=${k})`);
+    el("rect", {x: 590, y: 160, width: 110, height: 110, fill: css("--cell2"), stroke: css("--line")}, svg);
+    el("text", {x: 645, y: 220, "text-anchor": "middle", "font-size": 12}, svg, `Bs (k=${k})`);
+  }
+  el("text", {x: 420, y: 320, "font-size": 13}, svg, s.load === true ? "phase: load (global → shared), then __syncthreads()"
+    : s.load === false ? "phase: compute (shared → registers), then __syncthreads()" : "");
+}
+function drawBank(svg, s) {
+  const n = 32, cw = 25, ch = 11, x0 = 30, y0 = 50, W = 32 + s.pad;
+  el("text", {x: x0, y: 30, "font-size": 14, "font-weight": 600}, svg, `float tile[32][${W}] · colour = bank`);
+  const hue = b => `hsl(${(b * 360) / 32}, 55%, 62%)`;
+  for (let r = 0; r < n; r++) for (let c = 0; c < W; c++) {
+    const bank = (r * W + c) % 32, pad = c === 32;
+    const sel = s.col ? c === 5 : r === 5;
+    el("rect", {x: x0 + c * cw, y: y0 + r * ch, width: cw - 1, height: ch - 1, fill: pad ? css("--bg") : hue(bank),
+      opacity: sel && !pad ? 1 : 0.35, stroke: sel && !pad ? css("--fg") : "none"}, svg);
+  }
+  const banks = new Map();
+  for (let i = 0; i < 32; i++) {
+    const w = s.col ? i * W + 5 : 5 * W + i;
+    const b = w % 32;
+    banks.set(b, (banks.get(b) || 0) + 1);
+  }
+  const worst = Math.max(...banks.values());
+  el("text", {x: x0, y: y0 + n * ch + 25, "font-size": 14}, svg,
+    `${s.col ? "column 5" : "row 5"} read by 32 lanes → ${banks.size} distinct banks, worst bank hit ${worst}× → ${worst} pass${worst > 1 ? "es" : ""}`);
+}
+function draw(svg, s) { (s.part === "mm" ? drawMM : drawBank)(svg, s); }
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>

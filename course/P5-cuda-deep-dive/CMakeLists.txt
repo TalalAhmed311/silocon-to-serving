@@ -1,0 +1,77 @@
+# P5 build: every examples/*.cu (one executable each) and every exercises/<NN-name>/test.cu (a CTest test) of every
+# P5 module. Exercises include "kernel.cuh" from their own folder (your starter) or, with -DS2S_USE_SOLUTIONS=ON, from
+# exercises/solutions/<NN-name>/ (which mostly just include the D4 library: platform/kernels/include/d4/).
+#
+#   cmake -S course/P5-cuda-deep-dive -B build/p5 -DCMAKE_CUDA_ARCHITECTURES=native   (or 75 for T4, 89 for L4)
+#   cmake --build build/p5 -j && ctest --test-dir build/p5 --output-on-failure
+#   ./build/p5/p5.2_02_transpose_ladder            # examples print their own tables; tests accept --bench
+# Requires CUDA 12.4+, CMake 3.24+, an NVIDIA GPU (T2). Tensor-core targets need sm_80+ (they are skipped below that).
+cmake_minimum_required(VERSION 3.24)
+project(p5 LANGUAGES CXX CUDA)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  set(CMAKE_CUDA_ARCHITECTURES native)
+endif()
+option(S2S_USE_SOLUTIONS "Build exercise tests against the reference solutions" OFF)
+find_package(CUDAToolkit REQUIRED)
+enable_testing()
+set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(INC ${ROOT}/laneB-cuda/harness/include ${ROOT}/course/common/include ${ROOT}/platform/kernels/include)
+
+# Kernels that need sm_80+ (bf16 mma.sync, cp.async) or sm_89+ (fp8) declare it in their first line:
+#   // S2S_MIN_SM 80
+# and are skipped when every requested architecture is lower.
+set(_min_arch 1000)
+foreach(a ${CMAKE_CUDA_ARCHITECTURES})
+  string(REGEX MATCH "^[0-9]+" n "${a}")
+  if(n AND n LESS _min_arch)
+    set(_min_arch ${n})
+  endif()
+endforeach()
+if(_min_arch EQUAL 1000)   # "native" or "all": assume the build GPU supports everything; the test checks at runtime
+  set(_min_arch 1000)
+endif()
+
+function(s2s_cu target src)
+  file(STRINGS ${src} first LIMIT_COUNT 1)
+  if(first MATCHES "S2S_MIN_SM ([0-9]+)" AND NOT _min_arch EQUAL 1000 AND _min_arch LESS ${CMAKE_MATCH_1})
+    message(STATUS "skip ${target}: needs sm_${CMAKE_MATCH_1}")
+    return()
+  endif()
+  add_executable(${target} ${src})
+  target_include_directories(${target} PRIVATE ${ARGN} ${INC})
+  target_link_libraries(${target} PRIVATE CUDA::cudart CUDA::cublas)
+  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr -lineinfo>)
+  set(S2S_LAST_TARGET ${target} PARENT_SCOPE)
+endfunction()
+
+file(GLOB modules LIST_DIRECTORIES true ${CMAKE_CURRENT_SOURCE_DIR}/P5.*)
+foreach(mod ${modules})
+  get_filename_component(mname ${mod} NAME)
+  string(REGEX MATCH "^P5\\.[0-9]+" mid ${mname})
+  string(TOLOWER ${mid} mid)
+  file(GLOB examples ${mod}/examples/*.cu)
+  foreach(e ${examples})
+    get_filename_component(n ${e} NAME_WE)
+    s2s_cu(${mid}_${n} ${e} ${mod}/examples)
+  endforeach()
+  file(GLOB tests ${mod}/exercises/*/test.cu)
+  foreach(t ${tests})
+    get_filename_component(dir ${t} DIRECTORY)
+    get_filename_component(ex ${dir} NAME)
+    if(S2S_USE_SOLUTIONS)
+      set(impl ${mod}/exercises/solutions/${ex})
+    else()
+      set(impl ${dir})
+    endif()
+    set(S2S_LAST_TARGET "")
+    s2s_cu(${mid}_${ex} ${t} ${impl} ${mod}/examples)
+    if(S2S_LAST_TARGET)
+      add_test(NAME ${mid}_${ex} COMMAND ${S2S_LAST_TARGET})
+    endif()
+  endforeach()
+endforeach()

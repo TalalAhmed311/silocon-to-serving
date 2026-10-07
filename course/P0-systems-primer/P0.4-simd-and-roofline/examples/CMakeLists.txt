@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.20)
+project(p0_4_examples CXX)
+set(CMAKE_CXX_STANDARD 20)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+find_package(Threads REQUIRED)
+# -march=native enables AVX2/FMA (x86) or the dotprod extension (recent ARM) when the CPU has them.
+add_compile_options(-O3 -march=native)
+set(S2S_COMMON ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/include)
+set(POOL ${CMAKE_CURRENT_SOURCE_DIR}/../../P0.3-threads-atomics-caches/examples)
+foreach(t 01_scalar_vs_simd_add 02_fma_peak 03_stream 05_int8_dot)
+  add_executable(${t} ${t}.cpp)
+  target_include_directories(${t} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${S2S_COMMON} ${POOL})
+  target_link_libraries(${t} Threads::Threads)
+endforeach()
+# 01 compares against the compiler's own vectorization of the scalar loop, so keep one copy unvectorized.
+set_source_files_properties(01_scalar_vs_simd_add.cpp PROPERTIES COMPILE_OPTIONS "-fno-tree-vectorize")

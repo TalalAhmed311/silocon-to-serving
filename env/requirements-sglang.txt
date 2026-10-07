@@ -1,0 +1,4 @@
+# SGLang environment for P2.2 — keep it separate from vLLM's venv (they pin different torch/flashinfer builds).
+#   uv venv .venv-sglang && uv pip install -p .venv-sglang -r env/requirements-sglang.txt
+sglang[all]==0.5.21
+httpx>=0.28

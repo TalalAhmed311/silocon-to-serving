@@ -1,0 +1,94 @@
+# vLLM serving Deployment for the GPU pool (#1). One GPU per pod; weights from a PVC or the node cache (P3.7).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: s2s
+  labels: { app: vllm }
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   # never drop below current capacity during a rollout
+  selector:
+    matchLabels: { app: vllm }
+  template:
+    metadata:
+      labels: { app: vllm, s2s/role: backend }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      terminationGracePeriodSeconds: 120          # time for in-flight streams to finish (see preStop)
+      nodeSelector: { s2s/pool: gpu }
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: vllm
+          image: REGISTRY/s2s-vllm:0.31.0        # built from env/Dockerfile.serving; replace REGISTRY (kustomize overlay)
+          args: ["/models/model", "--host", "0.0.0.0", "--port", "8000", "--max-model-len", "8192",
+                 "--gpu-memory-utilization", "0.90", "--api-key", "$(VLLM_API_KEY)"]
+          env:
+            - name: VLLM_API_KEY
+              valueFrom: { secretKeyRef: { name: vllm-api-key, key: key } }   # created out-of-band (P3.8), never in git
+            - name: HF_HUB_OFFLINE
+              value: "1"                          # weights come from the volume, not the internet at startup
+          ports: [{ name: http, containerPort: 8000 }]
+          resources:
+            requests: { cpu: "3", memory: 12Gi, nvidia.com/gpu: 1 }
+            limits: { memory: 14Gi, nvidia.com/gpu: 1 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          startupProbe:                           # model load + CUDA graph capture can take minutes
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+            failureThreshold: 90                  # 15 min budget; size it from your measured load time (P3.7)
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+            failureThreshold: 6
+          lifecycle:
+            preStop:
+              # Stop receiving new requests (endpoints update after readiness fails / pod terminating), then give
+              # in-flight streams time to finish before SIGTERM. vLLM also drains on SIGTERM; the sleep covers the
+              # endpoint-propagation race.
+              exec: { command: ["sh", "-c", "sleep 20"] }
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: models }
+        - name: tmp
+          emptyDir: {}
+        - name: shm                               # PyTorch/NCCL use shared memory; the default 64 MiB is too small
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: s2s
+spec:
+  selector: { app: vllm }
+  ports: [{ name: http, port: 8000, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vllm
+  namespace: s2s
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: vllm }
