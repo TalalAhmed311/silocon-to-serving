@@ -1,0 +1,11 @@
+# C1 (#14): the EKS overlay + an internet-facing gateway LB restricted to client CIDRs + the in-region prober.
+#   kubectl apply -k platform/deploy/overlays/eks-failover        (in EACH region; set REGION in prober.yaml first)
+# Prereqs: everything for overlays/eks, a `probe-api-key` Secret (a dedicated low-budget tenant key, synced from
+# Secrets Manager), and an IAM role for the prober allowing only cloudwatch:PutMetricData (IRSA; annotate below).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../eks
+  - prober.yaml
+patches:
+  - path: gateway-lb.yaml

@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 terraform fmt -check -recursive infra
-for d in infra/aws/single-node infra/aws/eks infra/aws/distributed infra/gcp/gke; do
+for d in infra/aws/single-node infra/aws/eks infra/aws/distributed infra/aws/failover infra/gcp/gke; do
   [ -d "$d" ] || continue
   echo "== $d"
   (cd "$d" && terraform init -backend=false -input=false >/dev/null && terraform validate)

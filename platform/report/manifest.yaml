@@ -1,0 +1,38 @@
+# What goes into the teardown (C2). Each section names the raw results it reads (globs relative to the repo root)
+# and how to render them. A missing file renders as "TODO(run-on: <hardware>)", never as a made-up number.
+title: "Silicon-to-Serving: public benchmark teardown"
+sections:
+  - id: serving-knee
+    title: "Serving: #4 knee per engine (same GPU, model, limits)"
+    kind: loadgen
+    hardware: g6.xlarge
+    files: ["results/p6.7/vllm.json", "results/p6.7/s2s.json"]
+  - id: bakeoff
+    title: "Engine bake-off (#2)"
+    kind: table
+    hardware: g6.xlarge
+    files: ["results/bakeoff/*.json"]
+    columns: [engine, model, dtype, tok_s, ttft_p50_s, itl_p50_ms]
+  - id: quant
+    title: "Quantization (#7)"
+    kind: table
+    hardware: g6.xlarge
+    files: ["results/quant/*.json"]
+    columns: [method, model, ppl, tok_s, memory_gb]
+  - id: cost
+    title: "Cost per million tokens (#13)"
+    kind: table
+    hardware: AWS (stated instance and region)
+    files: ["results/cost/*.json"]
+    columns: [instance, price_per_h, tok_s, usd_per_mtok, price_source]
+  - id: kernels
+    title: "Custom kernel delta (#12)"
+    kind: table
+    hardware: g6.xlarge
+    files: ["results/kernels/*.json"]
+    columns: [kernel, shape, baseline_us, ours_us, speedup, pct_of_roofline]
+  - id: failover
+    title: "Failover game day (#14)"
+    kind: kv
+    hardware: AWS, two regions
+    files: ["results/c1/gameday.json"]

@@ -6,6 +6,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --no-dev && useradd -u 10001 -m app
+# boto3 only for the C1 failover prober's CloudWatch push (not in the lockfile: the T0 code never needs it)
+RUN uv pip install --python /app/.venv/bin/python "boto3>=1.35"
 COPY platform ./platform
 COPY course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/gpu_specs.yaml course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/specs.py \
      ./course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/
