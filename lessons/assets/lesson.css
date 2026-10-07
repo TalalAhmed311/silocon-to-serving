@@ -36,6 +36,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible,su
 .meter{display:flex;align-items:center;gap:8px;font:600 12px var(--f-mono);color:var(--muted)}
 .meter .track{width:120px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .meter .fill{height:100%;width:0;background:var(--accent);transition:width .4s}
+.themebtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:16px/1 var(--f-ui);width:38px;height:38px;border-radius:8px;cursor:pointer;margin-left:auto}
+.themebtn+.tabs{margin-left:0}
 .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;margin-left:auto}
 .tabs button{border:0;background:none;color:var(--muted);font:700 14px var(--f-ui);padding:8px 14px;border-radius:7px;cursor:pointer}
 .tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
@@ -140,6 +142,7 @@ input[type=range]{accent-color:var(--accent);width:100%}
   .step{min-height:64vh}
   .simgrid{grid-template-columns:minmax(0,1fr)}
   .tabs{margin-left:0}
+  .themebtn{margin-left:0}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 

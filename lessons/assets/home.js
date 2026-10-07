@@ -1,5 +1,11 @@
 /* home.js — renders the course map from catalog.js; available.js (generated) lists built lessons. */
 (function () {
+  try { const t = JSON.parse(localStorage.getItem("s2s:theme") || "null"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  document.getElementById("themebtn").onclick = () => {
+    const r = document.documentElement, sys = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const next = (r.dataset.theme || sys) === "dark" ? "light" : "dark"; r.dataset.theme = next;
+    try { localStorage.setItem("s2s:theme", JSON.stringify(next)); } catch (e) {}
+  };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const avail = new Set(window.S2S_AVAILABLE || []);
   const get = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } };

@@ -115,6 +115,15 @@
     ms(s) { return s >= 1 ? s.toFixed(2) + " s" : (s * 1e3).toFixed(s < 0.01 ? 2 : 1) + " ms"; },
   };
 
+  /* ---------------- theme (remembered per browser) ---------------- */
+  const savedTheme = store.get("s2s:theme", null);
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  function toggleTheme() {
+    const r = document.documentElement, sys = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const next = (r.dataset.theme || sys) === "dark" ? "light" : "dark";
+    r.dataset.theme = next; store.set("s2s:theme", next);
+  }
+
   /* ---------------- the lesson shell ---------------- */
   function lesson(L) {
     const KEY = "s2s:progress:" + L.id;
@@ -131,6 +140,7 @@
   <a class="home" href="index.html" aria-label="Course home">☰ Course</a>
   <div class="t">${esc(L.n)} · ${esc(L.title)}<small>${esc(L.subtitle || "")}</small></div>
   <div class="meter" title="checkpoints answered"><div class="track"><div class="fill" id="meter"></div></div><span id="meterTxt"></span></div>
+  <button class="themebtn" id="themebtn" aria-label="Switch light or dark theme" title="Theme">◐</button>
   <div class="tabs" role="tablist">${tabs.map(([id, t], i) => `<button role="tab" aria-selected="${i === 0}" aria-controls="${id}">${t}</button>`).join("")}</div>
 </div>
 <section role="tabpanel" id="learn" class="learn">
@@ -270,11 +280,12 @@ ${L.practice ? `<section role="tabpanel" id="prac" class="pane" hidden><div clas
     if (location.hash === "#simulate" && L.sim) tab("sim");
     if (location.hash === "#practice" && L.practice) tab("prac");
 
+    $("#themebtn").onclick = toggleTheme;
     const redraw = () => { show(Math.max(0, cur), true); if (L.sim && !$("#sim").hidden) simDraw(1); };
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
     new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     show(0); rail();
   }
 
-  window.S2S = { lesson, fmt, makeG, store };
+  window.S2S = { lesson, fmt, makeG, store, toggleTheme };
 })();
