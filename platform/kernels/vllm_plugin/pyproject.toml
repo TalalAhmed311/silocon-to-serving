@@ -1,0 +1,15 @@
+# #12 vLLM plugin: swaps vLLM's fused_add_rms_norm for torch.ops.s2s.fused_add_rms_norm in EVERY vLLM process
+# (the engine core and workers run in separate processes; a plugin is loaded in each).
+# Entry-point group "vllm.general_plugins" per vLLM's plugin docs at v0.31.0 (docs/design/plugin_system.md, UNVERIFIED
+# for later versions). Install: uv pip install -e platform/kernels/vllm_plugin   Disable: VLLM_PLUGINS="" (UNVERIFIED).
+[project]
+name = "s2s-vllm-plugin"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[project.entry-points."vllm.general_plugins"]
+s2s_rmsnorm = "s2s_vllm_plugin:register"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
