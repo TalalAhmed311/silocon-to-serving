@@ -25,6 +25,18 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+# Lessons link to code (.py, .cu, .tf) that stays in the repo and is not copied into the site; those links are
+# reported, not fatal, so `--strict` still catches broken Markdown-to-Markdown links via tools/check_links.py.
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+    absolute_links: info
+  links:
+    not_found: info
+    anchors: info
+    absolute_links: info
+    unrecognized_links: info
 nav:
   - Home: README.md
   - Phases:
@@ -35,7 +47,11 @@ nav:
       - P4 Multi-GPU and distributed: course/P4-multi-gpu-and-distributed/syllabus.md
       - P5 CUDA deep dive: course/P5-cuda-deep-dive/syllabus.md
       - P6 Engine internals: course/P6-engine-internals/syllabus.md
-      - Capstone: course/capstone/syllabus.md
+      - Capstone:
+          - Overview: course/capstone/README.md
+          - Syllabus: course/capstone/syllabus.md
+          - C1 Multi-region failover: course/capstone/C1-multi-region-failover/README.md
+          - C2 Public teardown: course/capstone/C2-public-benchmark-teardown/README.md
   - Lane B (CUDA on LeetGPU):
       - Overview: laneB-cuda/README.md
       - L1: laneB-cuda/L1-launch-and-indexing/syllabus.md
@@ -51,7 +67,10 @@ nav:
       - L6: laneB-cuda/L6-attention-and-triton/syllabus.md
       - L6 map: laneB-cuda/L6-attention-and-triton/leetgpu-map.md
       - Electives: laneB-cuda/electives.md
-  - Platform: platform/README.md
+  - Platform:
+      - Overview: platform/README.md
+      - "#0 v1 engine": platform/engine/v1/README.md
+      - "#14 failover stack": infra/aws/failover/README.md
   - Animations: animations/README.md
   - Reference:
       - Sources: SOURCES.md
@@ -59,3 +78,4 @@ nav:
       - Gaps: GAPS.md
       - Progress: PROGRESS.md
       - Stage 1 report: reports/stage1-source-index.md
+      - Stages 4–5 report: reports/stage4-5-build-report.md

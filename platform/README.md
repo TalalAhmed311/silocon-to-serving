@@ -1,6 +1,6 @@
 # platform/ — the portfolio repo
 
-Every project in the course is a layer of **one** platform. This folder is its skeleton. Each layer is filled in as the course reaches its project, and the folder can later be split out into its own repository.
+Every project in the course is a layer of **one** platform. Every layer is built (code and tests written; not yet executed — see [GAPS.md](../GAPS.md)). The folder can later be split out into its own repository.
 
 ```mermaid
 flowchart TB
@@ -33,8 +33,8 @@ flowchart TB
 | `training/` | #9 checkpointed distributed training | P4 | T3 |
 | `partitioning/` | #11 GPU partitioning lab | P4 | T3 |
 | `kernels/` | D4 kernels repo; #12 custom kernel path | P5 | T2 |
-| `engine/` | #0 v0 (CPU, P0) → #0 v1 (GPU, P6) | P0/P6 | T0/T2 |
-| `failover/` | #14 multi-region failover drill | Cap | T3 |
-| `report/` | #15 public benchmark teardown | Cap | — |
+| `engine/` | #0 v0 (CPU, P0) → #0 v1 (GPU serving engine, P6): scheduler, paged KV, radix cache, sampling, CUDA graphs, OpenAI server | P0/P6 | T0/T2 |
+| `failover/` | #14 multi-region failover: hysteresis health, failover policy, CRDT budgets, prober, game-day analysis (+ `infra/aws/failover`) | Cap | T0/T3 |
+| `report/` | #15 public benchmark teardown: report builder over raw result JSON | Cap | T0 |
 
 The P0 drills D1 (SIMD SGEMM) and D2 (KV block allocator) live in their modules, `course/P0-systems-primer/P0.4…` and `…/P0.3…`. D2 grows into `engine/` in P6.3.

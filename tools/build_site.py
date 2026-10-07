@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "site" / "docs"
 INCLUDE = ["README.md", "SOURCES.md", "GLOSSARY.md", "GAPS.md", "PROGRESS.md",
-           "course", "laneB-cuda", "platform", "animations", "reports"]
+           "course", "laneB-cuda", "platform", "animations", "reports", "infra"]
 
 def assemble() -> None:
     if DOCS.exists():

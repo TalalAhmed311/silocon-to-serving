@@ -55,6 +55,11 @@ class LLMEngine:
         need = self.blocks.blocks_for(len(prompt) + params.max_tokens)
         if need > self.blocks.num_blocks:
             raise RequestTooLarge(f"needs {need} KV blocks, pool has {self.blocks.num_blocks}")
+        cfg = self.scheduler.cfg
+        if not cfg.chunked_prefill and len(prompt) + params.max_tokens > cfg.max_num_batched_tokens:
+            # without chunking, a preempted request is re-prefilled in ONE step: prompt + generated must fit the budget
+            raise RequestTooLarge(f"prompt + max_tokens exceeds max_num_batched_tokens={cfg.max_num_batched_tokens} "
+                                  "with chunked prefill off")
         seq = Sequence(list(prompt), params, priority)
         self.rngs[seq.seq_id] = np.random.default_rng(params.seed if params.seed is not None else seq.seq_id)
         self.seqs[seq.seq_id] = seq

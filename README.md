@@ -14,7 +14,7 @@ Two lanes run in parallel:
 | **A** | Phases + portfolio projects | ≈11 h/week |
 | **B** | CUDA C++ kernels on [LeetGPU](https://leetgpu.com/challenges) | 3–4 problems/week in P0–P4, daily from P5 |
 
-> **Build status: Stage 4 in progress.** P0–P5 and Lane B L1–L6 are built (lessons, examples, exercises with tests, benches, AWS/GCP guides). P6 and the Capstone are next. Hardware runs are marked `TODO(run-on: …)`. See [Where things stand](#where-things-stand).
+> **Build status: Stages 1–4 done; Stage 5 (QA) is a first pass.** Every phase P0–P6, the Capstone and Lane B L1–L6 are written: lessons, examples, exercises with tests, benches, animations, AWS/GCP guides, and the `platform/` projects. **Nothing has been executed yet**: T0 tests and examples are `TODO(run)`, hardware runs are `TODO(run-on: …)`. [GAPS.md](GAPS.md) lists every one, with the commands to close them.
 
 ## Course map
 
@@ -64,7 +64,7 @@ platform/         the single portfolio repo that the projects grow into
 animations/       source of every animation (self-contained HTML/JS/SVG)
 site/             MkDocs Material config that renders the course
 env/              Dockerfiles and lockfiles (cpu, cuda-dev, serving)
-infra/aws/        Terraform + scripts (single-node, EKS, guardrails)
+infra/aws/        Terraform + scripts (single-node, EKS, distributed, failover, guardrails); infra/gcp/gke for P3.9
 tools/            link checker, bench runner, notebook executor
 reports/          stage and phase reports
 ```
@@ -76,17 +76,20 @@ reports/          stage and phase reports
 | 1. Source index | **Done.** See [SOURCES.md](SOURCES.md) and [reports/stage1-source-index.md](reports/stage1-source-index.md) |
 | 2. Syllabus | **Done.** Approved with defaults: book Path 2 order, GKE as the second cloud, Ray on EKS for P4.3 |
 | 3. Pilot module (P0.1, end to end) | **Done** |
-| 4. Build-out (P0 → Capstone, Lane B alongside) | **In progress:** P0–P5 + L1–L6 + D4 kernels built; P6, Capstone, final QA next |
-| 5. QA and delivery | Not started |
+| 4. Build-out (P0 → Capstone, Lane B alongside) | **Done:** P0–P6, Capstone (#14, #15), L1–L6 solutions and hint pages, D4 kernels, #0 v1 engine, 20 animations |
+| 5. QA and delivery | **First pass done:** links checked (`tools/check_links.py`), Python and YAML parse-checked, GAPS/GLOSSARY/PROGRESS regenerated, CI jobs for T0 tests and Terraform validation added. **Open:** the first real `uv run pytest` and every hardware run (GAPS §C–D) |
 
 ## Quickstart
 
-None yet. The P0.1 pilot will add the first runnable command. To preview the site locally:
-
 ```bash
-uv venv && uv pip install -r site/requirements.txt
-python tools/build_site.py serve
+uv sync                                    # Python ≥ 3.11; installs the T0 stack
+S2S_SOLUTIONS=1 uv run pytest              # every T0 test against the reference solutions (first run: GAPS.md §C)
+uv run pytest course/P0-systems-primer     # your exercise stubs: they fail until you implement them
+S2S_RUNNER=fake uv run uvicorn s2s_engine.server:app --app-dir platform/engine/v1 --port 8002   # the #0 v1 engine, fake model
+python tools/build_site.py serve           # the course as a website (needs site/requirements.txt)
 ```
+
+Start with [P0.1](course/P0-systems-primer/P0.1-c-cpp-for-systems/README.md) and tick weeks off in [PROGRESS.md](PROGRESS.md).
 
 ## License
 

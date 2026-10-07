@@ -34,7 +34,7 @@ uv run pytest platform/report -q
 PYTHONPATH=platform uv run python -m report.build --root . --out reports/teardown.md
 ```
 
-Copy each benchmark's JSON into the paths the manifest expects (`results/p6.7/`, `results/bakeoff/`, `results/quant/`, `results/cost/`, `results/kernels/`, `results/c1/`), or edit the manifest to point at where yours are. Write `results/c1/gameday.json` with `python -m failover.gameday … ` output saved as JSON (exercise 2).
+Copy each benchmark's JSON into the paths the manifest expects (`results/p6.7/`, `results/bakeoff/`, `results/quant/`, `results/cost/`, `results/kernels/`, `results/c1/`), or edit the manifest to point at where yours are. `results/` is git-ignored, so commit exactly the files the report cites: `git add -f results/<path>.json`. Write `results/c1/gameday.json` with `python -m failover.gameday … ` output saved as JSON (exercise 2).
 
 ## Acceptance
 
