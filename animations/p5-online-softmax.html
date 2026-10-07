@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Online softmax: running max and sum</title>
+<style>/*CORE-CSS*/
+:root{--bg:#ffffff;--fg:#1d2433;--muted:#5b6578;--panel:#f3f5f9;--line:#d5dbe5;--accent:#2563eb;--accent2:#d9480f;--ok:#2f9e44;--bad:#c92a2a;--warn:#e8a200;--cell:#e7ecf5;--cell2:#cfe0ff;--cell3:#ffd8c2;--cell4:#d3f9d8;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}}
+:root[data-theme="dark"]{--bg:#11151c;--fg:#e6e9ef;--muted:#9aa4b5;--panel:#1a2029;--line:#2e3846;--accent:#6ea8fe;--accent2:#ff922b;--ok:#69db7c;--bad:#ff6b6b;--warn:#ffd43b;--cell:#232b37;--cell2:#1f3a66;--cell3:#5c2e14;--cell4:#1f4d2a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;overflow:hidden}
+.stage svg{width:100%;height:auto;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+input[type=range]{width:120px}
+.progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:3px;min-width:80px}
+.progress>div{height:100%;background:var(--accent);border-radius:3px;width:0}
+.caption{min-height:3.2em;background:var(--panel);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px}
+.extra{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.9rem;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+svg text{fill:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+svg .muted{fill:var(--muted)}
+.kbd{font-family:ui-monospace,monospace;font-size:.85em;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/*END-CORE-CSS*/</style>
+</head>
+<body>
+<main>
+<h1>Online softmax: running max and sum</h1>
+<p class="sub">Stream one row once. Keep m (max so far) and d = Σ exp(x − m). When m grows, rescale d. Then merge two partial states, the way two warps would.</p>
+<div class="stage"><svg id="svg" viewBox="0 0 960 520" role="img" aria-label="Online softmax: running max and sum"></svg></div>
+<!--CONTROLS-->
+<div class="controls">
+  <button id="play" class="primary">Play</button>
+  <button id="prev" aria-label="previous step">◀ Step</button>
+  <button id="next" aria-label="next step">Step ▶</button>
+  <button id="reset">Reset</button>
+  <label>Speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"><span id="speedv"></span></label>
+  <div class="progress"><div id="bar"></div></div><span id="count" class="sub" style="margin:0"></span>
+  <button id="theme" aria-label="toggle theme">◐</button>
+</div>
+<div id="caption" class="caption"></div>
+<!--END-CONTROLS-->
+<script>/*CORE-JS*/
+// Animation core: every animation defines STEPS (array of {caption, ...state}) and draw(svg, step, index).
+// Controls: play/pause, step back/forward, reset, speed slider, keyboard (space, ←, →, r), theme toggle.
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  window.el = function (tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  window.css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  window.startAnimation = function (cfg) {
+    const svg = $("#svg");
+    let i = 0, playing = false, timer = null;
+    const steps = cfg.steps;
+    const render = () => {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      cfg.draw(svg, steps[i], i);
+      $("#caption").innerHTML = steps[i].caption || "";
+      $("#bar").style.width = (100 * i / Math.max(1, steps.length - 1)) + "%";
+      $("#count").textContent = (i + 1) + " / " + steps.length;
+    };
+    const speed = () => +$("#speed").value;           // steps per second
+    const tick = () => { if (i < steps.length - 1) { i++; render(); } else pause(); };
+    const play = () => { if (i >= steps.length - 1) i = 0; playing = true; $("#play").textContent = "Pause"; schedule(); render(); };
+    const schedule = () => { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, 1000 / speed()); };
+    const pause = () => { playing = false; clearTimeout(timer); $("#play").textContent = "Play"; };
+    $("#play").onclick = () => (playing ? pause() : play());
+    $("#next").onclick = () => { pause(); if (i < steps.length - 1) i++; render(); };
+    $("#prev").onclick = () => { pause(); if (i > 0) i--; render(); };
+    $("#reset").onclick = () => { pause(); i = 0; render(); };
+    $("#speed").oninput = () => { $("#speedv").textContent = speed() + "/s"; schedule(); };
+    $("#theme").onclick = () => {
+      const r = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const cur = r.dataset.theme || (dark ? "dark" : "light");
+      r.dataset.theme = cur === "dark" ? "light" : "dark"; render();
+    };
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+      if (e.key === "ArrowRight") $("#next").click();
+      if (e.key === "ArrowLeft") $("#prev").click();
+      if (e.key === "r") $("#reset").click();
+    });
+    window.rerender = render;   // lets an animation re-render after its own inputs change
+    window.setSteps = (s) => { pause(); cfg.steps = s; steps.length = 0; s.forEach((x) => steps.push(x)); i = 0; render(); };
+    $("#speedv").textContent = speed() + "/s";
+    render();
+  };
+})();
+/*END-CORE-JS*/</script>
+<script>
+const X = [1.0, 3.0, 2.0, 5.0, 4.0, 0.5, 6.0, 2.5];
+const half = 4;
+const STEPS = [];
+let m = -Infinity, d = 0;
+const f = v => (Math.abs(v) < 1e-3 ? v.toExponential(2) : v.toFixed(3));
+STEPS.push({k: -1, m, d, caption: "Start: m = −∞, d = 0. The goal is softmax(x)ᵢ = exp(xᵢ − M)/Σ exp(xⱼ − M) with M = max(x), reading x <b>once</b> (the safe version reads it 3 times)."});
+X.forEach((v, k) => {
+  let cap;
+  if (v > m) {
+    const scale = m === -Infinity ? 0 : Math.exp(m - v);
+    cap = `x[${k}] = ${v} > m = ${m === -Infinity ? "−∞" : m}: <b>new max</b>. Rescale the old sum by exp(m_old − m_new) = ${f(scale)}, then add exp(0) = 1. d = ${f(d)}·${f(scale)} + 1.`;
+    d = d * scale + 1; m = v;
+  } else {
+    cap = `x[${k}] = ${v} ≤ m = ${m}: just add exp(${v} − ${m}) = ${f(Math.exp(v - m))}.`;
+    d += Math.exp(v - m);
+  }
+  STEPS.push({k, m, d, caption: cap + ` Now m = ${m}, d = ${f(d)}.`});
+});
+const truth = X.reduce((a, v) => a + Math.exp(v - Math.max(...X)), 0);
+STEPS.push({k: X.length - 1, m, d, caption: `End of the row: m = ${m} = max(x), d = ${f(d)} = Σ exp(xⱼ − ${m}) (check: ${f(truth)}). One more pass writes exp(xᵢ − m)/d. If the row lives in registers, it's no extra read (P5.5 v3).`});
+// merge demo: two halves
+const st = arr => arr.reduce(([mm, dd], v) => v > mm ? [v, dd * (mm === -Infinity ? 0 : Math.exp(mm - v)) + 1] : [mm, dd + Math.exp(v - mm)], [-Infinity, 0]);
+const A = st(X.slice(0, half)), B = st(X.slice(half));
+const M = Math.max(A[0], B[0]), D = A[1] * Math.exp(A[0] - M) + B[1] * Math.exp(B[0] - M);
+STEPS.push({merge: true, A, B, M, D, caption: `Parallel version: warp 1 processes x[0..3] → (m₁, d₁) = (${A[0]}, ${f(A[1])}), warp 2 processes x[4..7] → (m₂, d₂) = (${B[0]}, ${f(B[1])}). Each state is valid relative to its <b>own</b> max.`});
+STEPS.push({merge: true, A, B, M, D, done: true, caption: `<b>Merge</b>: M = max(m₁, m₂) = ${M}; D = d₁·e^{m₁−M} + d₂·e^{m₂−M} = ${f(D)}. That's the same as the sequential result. This rule is associative, so it works in a shuffle tree, across warps, and across FlashAttention's K/V tiles (P5.8).`});
+function draw(svg, s) {
+  const x0 = 60, cw = 100, y = 90;
+  X.forEach((v, k) => {
+    const seen = !s.merge && k <= s.k, cur = !s.merge && k === s.k;
+    const fill = s.merge ? (k < half ? css("--cell2") : css("--cell3")) : seen ? css("--cell4") : css("--panel");
+    el("rect", {x: x0 + k * cw, y, width: cw - 10, height: 50, rx: 6, fill, stroke: cur ? css("--accent") : css("--line"), "stroke-width": cur ? 3 : 1}, svg);
+    el("text", {x: x0 + k * cw + 45, y: y + 31, "text-anchor": "middle", "font-size": 17}, svg, String(v));
+    el("text", {x: x0 + k * cw + 45, y: y + 70, "text-anchor": "middle", "font-size": 10, class: "muted"}, svg, `x[${k}]`);
+  });
+  if (!s.merge) {
+    const box = (lx, label, val) => {
+      el("rect", {x: lx, y: 230, width: 300, height: 90, rx: 10, fill: css("--panel"), stroke: css("--line")}, svg);
+      el("text", {x: lx + 20, y: 262, "font-size": 14, class: "muted"}, svg, label);
+      el("text", {x: lx + 20, y: 302, "font-size": 26, "font-weight": 600}, svg, val);
+    };
+    box(120, "m (running max)", s.m === -Infinity ? "−∞" : String(s.m));
+    box(520, "d (running Σ exp(x − m))", f(s.d));
+  } else {
+    const st = (lx, label, mm, dd, col) => {
+      el("rect", {x: lx, y: 220, width: 260, height: 80, rx: 10, fill: col, stroke: css("--line")}, svg);
+      el("text", {x: lx + 16, y: 250, "font-size": 14}, svg, label);
+      el("text", {x: lx + 16, y: 282, "font-size": 18}, svg, `m = ${mm}, d = ${f(dd)}`);
+    };
+    st(60, "warp 1: x[0..3]", s.A[0], s.A[1], css("--cell2"));
+    st(460, "warp 2: x[4..7]", s.B[0], s.B[1], css("--cell3"));
+    if (s.done) {
+      el("path", {d: "M190,300 L420,370 M590,300 L420,370", stroke: css("--accent"), "stroke-width": 2.5, fill: "none"}, svg);
+      el("rect", {x: 290, y: 370, width: 260, height: 80, rx: 10, fill: css("--cell4"), stroke: css("--line")}, svg);
+      el("text", {x: 306, y: 400, "font-size": 14}, svg, "merged");
+      el("text", {x: 306, y: 432, "font-size": 18}, svg, `M = ${s.M}, D = ${f(s.D)}`);
+    }
+  }
+}
+startAnimation({steps: STEPS, draw});
+</script>
+</main>
+</body>
+</html>
