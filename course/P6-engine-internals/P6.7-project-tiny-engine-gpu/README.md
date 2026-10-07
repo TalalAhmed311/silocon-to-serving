@@ -46,7 +46,7 @@ The reference implementation is complete and tested at T0. Your project is to **
 
 ## Acceptance tests
 
-- [ ] `platform/engine/v1/tests` pass at T0 (CI runs them).
+- [ ] `platform/engine/v1/tests` pass at T0.
 - [ ] Greedy outputs token-identical to the NumPy/PyTorch reference for 8 prompts in fp32 on the GPU, with graphs on and off; bf16 within your stated logit tolerance.
 - [ ] Survives #4 at 2× its knee rate for 5 minutes with no errors (preemptions are fine; they must show in `/metrics`).
 - [ ] #4 knee report vs vLLM, and the bench table filled in.

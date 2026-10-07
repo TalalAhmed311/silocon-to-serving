@@ -23,6 +23,6 @@ Nothing has been executed: no tests, no examples, no Terraform, no animations op
 
 ## Known risks for the first run
 
-- Tests that were never executed will have some failures (typos, API drift in pinned libraries). Fix forward; CI (`.github/workflows/t0.yml`) runs them with `S2S_SOLUTIONS=1` once pushed.
+- Tests that were never executed will have some failures (typos, API drift in pinned libraries). Fix forward; run them locally with `S2S_SOLUTIONS=1 uv run pytest`.
 - CUDA code was reviewed but never compiled: expect compile errors on the first `cmake --build`, especially around architecture-specific intrinsics (P5.7–P5.8).
 - Version pins (vLLM `v0.31.0`, SGLang `v0.5.21`, provider `~> 6.0`, etc.) come from Stage 1's source index; re-check them against the current releases before the first T2/T3 run.

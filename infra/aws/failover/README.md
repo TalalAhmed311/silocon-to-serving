@@ -29,6 +29,6 @@ make drill-restore
 make down
 ```
 
-`TODO(run-on: AWS, two regions)`. `make check` (fmt + validate) runs in CI with the other stacks (`tools/ci_terraform.sh`).
+`TODO(run-on: AWS, two regions)`. `make check` (fmt + validate) runs offline; `bash tools/ci_terraform.sh` checks every stack at once.
 
 Why CNAME failover records and not alias records? The gateway LBs are created by Kubernetes, not by this stack; a CNAME needs only their DNS names. With alias records you'd also need each LB's hosted zone id (and could use `evaluate_target_health`) — a fine upgrade once the LBs are Terraform-managed.

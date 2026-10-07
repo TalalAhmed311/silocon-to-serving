@@ -6,7 +6,7 @@
 
 Pinned: GPU Operator `v26.7.1`, DCGM exporter `4.8.4`, k8s-device-plugin `v0.20.1`, KServe `v0.21.0`, Dynamo `v1.5.0`, llm-d `v0.10.0`, Ray `2.59.0`, KEDA `v2.21.0`, terraform-aws-eks `v21.26.0`, data-on-eks `v1.2.1`, Run:ai Model Streamer `0.16.1`.
 
-**Cost rule for this phase:** every lab starts with `make up` and ends with `make down`. `make down` is tested in CI with `terraform plan -destroy` on a mock backend. Budget alarm + idle auto-stop are created by the same Terraform. Spend estimates are computed at build time from in-region prices (TODO(verify-prices)).
+**Cost rule for this phase:** every lab starts with `make up` and ends with `make down`. `make down` is checked locally with `terraform plan -destroy` before each lab. Budget alarm + idle auto-stop are created by the same Terraform. Spend estimates are computed at build time from in-region prices (TODO(verify-prices)).
 
 | Module | Time | Project | Animations |
 |---|---|---|---|

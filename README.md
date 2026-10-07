@@ -77,7 +77,7 @@ reports/          stage and phase reports
 | 2. Syllabus | **Done.** Approved with defaults: book Path 2 order, GKE as the second cloud, Ray on EKS for P4.3 |
 | 3. Pilot module (P0.1, end to end) | **Done** |
 | 4. Build-out (P0 → Capstone, Lane B alongside) | **Done:** P0–P6, Capstone (#14, #15), L1–L6 solutions and hint pages, D4 kernels, #0 v1 engine, 20 animations |
-| 5. QA and delivery | **First pass done:** links checked (`tools/check_links.py`), Python and YAML parse-checked, GAPS/GLOSSARY/PROGRESS regenerated, CI jobs for T0 tests and Terraform validation added. **Open:** the first real `uv run pytest` and every hardware run (GAPS §C–D) |
+| 5. QA and delivery | **First pass done:** links checked (`tools/check_links.py`), Python and YAML parse-checked, GAPS/GLOSSARY/PROGRESS regenerated. **Open:** the first real `uv run pytest` and every hardware run (GAPS §C–D) |
 
 ## Quickstart
 

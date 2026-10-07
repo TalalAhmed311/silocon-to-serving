@@ -5,7 +5,7 @@
 | Creates | 1 EC2 GPU instance (DLAMI, Ubuntu 22.04), gp3 encrypted root disk, a security group with **no inbound rules**, an IAM role (SSM, CloudWatch agent, read-only S3 prefix, one SSM parameter), an AWS Budget, an idle-stop alarm |
 | Access | **SSM Session Manager only.** No SSH key, no open port. Servers bind to `127.0.0.1` and you reach them with `make forward` (an SSM port-forward) |
 | Cost | instance $/h (see the table below) + gp3 storage while the disk exists (also when stopped) |
-| Teardown | `make down`. `make check` validates the code offline in CI |
+| Teardown | `make down`. `make check` validates the code offline |
 
 ## Instance options
 
@@ -47,7 +47,7 @@ make down               # delete everything
 | no public endpoint | the SG has no ingress; `make check` fails if anyone adds one; servers bind to 127.0.0.1 |
 | secrets | HF token in SSM Parameter Store; the role can read only `/s2s/hf_token` |
 | least privilege | the role has SSM core, the CloudWatch agent, and read on one S3 prefix. Nothing else |
-| teardown is tested | CI runs `make check` and `terraform plan -destroy` against a mock-credential `plan` (see `tools/ci_terraform.sh`) |
+| teardown is tested | run `make check` and `terraform plan -destroy` before each lab (see `tools/ci_terraform.sh`) |
 
 ## Drivers and CUDA on the box
 

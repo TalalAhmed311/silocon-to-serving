@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check Markdown links in the repo.
 
-Run: python tools/check_links.py            # relative links only (offline, used in CI)
+Run: python tools/check_links.py            # relative links only (offline)
      python tools/check_links.py --external # also HEAD-request http(s) links
 Expected output: "OK: N files, M relative links" or a list of broken links and exit code 1.
 Hardware: T0.

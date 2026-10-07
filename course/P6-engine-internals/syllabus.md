@@ -1,6 +1,6 @@
 # P6 — Engine internals
 
-**Weeks 35–40 · Lane A ≈ 66 h · Tier T0 for scheduler/allocator/radix-tree logic (pure Python, fully tested in CI) + T2 for the GPU engine · Lane B: L6 daily**
+**Weeks 35–40 · Lane A ≈ 66 h · Tier T0 for scheduler/allocator/radix-tree logic (pure Python, fully tested at T0) + T2 for the GPU engine · Lane B: L6 daily**
 
 **Thread through the phase:** read nano-vllm line by line, re-implement each subsystem in your own engine, map every concept to the production code in vLLM `vllm/v1/` and SGLang `python/sglang/srt/`, then ship **#0 v1**. That is the P0 engine ported to CUDA with continuous batching, paged KV (D2 grown up), your D4 kernels, plugged into #6 and benchmarked against vLLM with #4.
 

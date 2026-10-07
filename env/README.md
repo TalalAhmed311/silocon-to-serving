@@ -11,4 +11,4 @@
 | `requirements-sglang.txt` | SGLang pin (separate venv) | T2 |
 | `requirements-quant.txt` | LLM Compressor, GPTQModel, lm-eval pins | T2 |
 
-**Pin base images by digest** in your fork. Tags move; digests don't. The P3.1 exercise shows how, and the CI lint checks that every `FROM` has either a digest or an explicit version tag.
+**Pin base images by digest** in your fork. Tags move; digests don't. The P3.1 exercise shows how, and its policy check (`02_dockerfile_policy.py`) verifies that every `FROM` has either a digest or an explicit version tag.

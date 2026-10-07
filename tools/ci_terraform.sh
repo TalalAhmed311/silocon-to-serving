@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci_terraform.sh — offline checks for every Terraform root under infra/: fmt, init (no backend), validate, and the
+# ci_terraform.sh — local offline checks for every Terraform root under infra/: fmt, init (no backend), validate, and the
 # "no inbound ingress" policy for single-node. No AWS credentials or API calls are needed.
 # Run: bash tools/ci_terraform.sh      Hardware: T0. Needs terraform >= 1.6 on PATH.
 set -euo pipefail
