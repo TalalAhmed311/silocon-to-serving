@@ -383,7 +383,7 @@ D3 with bw_util 0.8 → 15.0 tokens/s</div>
           cmd: "uv run python course/P2-serving-engines/P2.1-first-serve-with-vllm/exercises/check_results.py results/p21.json" },
         { title: "Find the max-model-len that fails", tier: "T2 · easy", goal: "Raise MAX_MODEL_LEN until vLLM refuses to start, explain the error with D3, then make it start by changing one other flag.",
           cmd: "MAX_MODEL_LEN=65536 bash course/P2-serving-engines/P2.1-first-serve-with-vllm/examples/01_serve.sh /opt/models/<model>" },
-        { title: "Eager vs CUDA graphs at batch 1", tier: "T2 · medium", goal: "Run the decode-ceiling bench with and without <code>--enforce-eager</code> and explain why the gap shrinks at batch 8.",
+        { title: "Eager vs CUDA graphs at batch 1", tier: "T2 · medium", goal: "Run the decode-ceiling bench with and without --enforce-eager and explain why the gap shrinks at batch 8.",
           cmd: "python course/P2-serving-engines/P2.1-first-serve-with-vllm/bench/decode_ceiling.py --url http://127.0.0.1:8000 --gpu L4 --model-config /opt/models/<model>/config.json" },
         { title: "Reproduce vllm bench latency", tier: "T0 test + T2 · hard", goal: "Write measure_e2e() in my_latency.py, pass the test against the mock server, then match vllm bench latency within 10%.",
           cmd: "uv run pytest course/P2-serving-engines/P2.1-first-serve-with-vllm/exercises" },

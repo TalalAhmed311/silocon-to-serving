@@ -421,7 +421,7 @@ equals 2 × P_matrices when
           const hw = (185 * wF) / max, ha = (185 * attnPer * t) / max;
           G.rect(X(i), 220 - hw, 40, hw, { fill: "w", rx: 2, opacity: hi ? 1 : 0.6 });
           G.rect(X(i), 220 - hw - ha, 40, ha, { fill: "q", rx: 2, opacity: hi ? 1 : 0.6 });
-          G.text(X(i) + 20, 238, t >= 1024 ? Math.round(t / 1024) + "k" : String(t), { anchor: "middle", size: 11, color: hi ? "ink" : "muted" });
+          G.text(X(i) + 20, 238, (t >= 1024 ? Math.round(t / 1024) + "k" : String(t)) + (hi ? " (yours)" : ""), { anchor: "middle", size: 11, color: hi ? "ink" : "muted" });
           if (hi) G.rect(X(i) - 4, 220 - hw - ha - 4, 48, hw + ha + 8, { stroke: "ok", sw: 2, rx: 4 });
         };
         ctxs.forEach((t, i) => col(i, t, false));

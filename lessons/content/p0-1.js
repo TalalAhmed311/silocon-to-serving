@@ -3,12 +3,13 @@
   const F = S2S.fmt;
   // a run of byte cells: spans = [[nBytes, color, label?], ...], cw px per byte
   const bytes = (G, x, y, spans, cw, h = 34) => {
-    const out = []; let b = 0;
+    const out = [], labs = []; let b = 0;
     spans.forEach(([n, col, lab]) => {
       for (let i = 0; i < n; i++) out.push(G.rect(x + (b + i) * cw, y, cw - 2, h, { fill: col, rx: 3, opacity: col === "hot" ? 0.35 : 0.9 }));
-      if (lab) G.text(x + (b + n / 2) * cw - 1, y + h / 2 + 4, lab, { anchor: "middle", size: 11, color: col === "hot" ? "ink" : "bg" });
+      if (lab) labs.push([x + (b + n / 2) * cw - 1, lab, col, x + b * cw, n]);
       b += n;
     });
+    labs.forEach(([lx, lab, col, sx, n]) => G.rect(sx, y, n * cw - 2, h, { fill: col, rx: 3, opacity: col === "hot" ? 0.35 : 0.9 }) && G.text(lx, y + h / 2 + 4, lab, { anchor: "middle", size: 11, weight: 700, color: col === "hot" ? "ink" : "bg" }));
     return out;
   };
   // layout of RequestRecord (exercise 1): as written and sorted by alignment
@@ -23,7 +24,7 @@
     intro: `<p>A language model is, to a computer, a few gigabytes of numbers laid out in flat arrays. Everything in this course, from a CPU engine to a GPU kernel to a serving system's cache, is a different way of slicing those arrays. This lesson builds the four ideas you need to reason about them: memory as a line of bytes, how the compiler lays out a struct, how one buffer becomes many matrices through <b>strides</b>, and how C++ makes sure every buffer is freed exactly once.</p>
 <p>You only need to know how to write a loop and a function in some language. Scroll: the dark panel redraws for each step.</p>`,
     facts: ["11 steps", "5 checkpoints", "1 simulator", "5 exercises"],
-    legend: [["k", "data"], ["v", "data"], ["hot", "padding / waste"], ["ok", "allowed / good"]],
+    legend: [["k", "data"], ["v", "neighbour"], ["q", "pointer / char"], ["hot", "padding"], ["ok", "allowed"]],
     next: "p0-2",
     steps: [
       { rail: "bytes", title: "Memory is one long line of bytes",
@@ -233,7 +234,7 @@ byte address = base + 9 × sizeof(float) = base + 36</div>
           G.text(24, 330, "8 lines fetched, 4 B used in each", { color: "hot", size: 13 });
           G.text(24, 352, "useful: 4 / 64 = 6.25%", { color: "hot", size: 13 });
           G.text(330, 330, "the same 8 lines, reused 8 times", { color: "ok", size: 13 });
-          G.text(330, 352, "half of each line filled while hot", { color: "ok", size: 13 });
+          G.text(330, 352, "8 of 16 floats used; 16 × 16 tiles use all", { color: "ok", size: 13 });
           G.text(24, 392, "4096 × 4096 floats: consecutive naive writes are 16 KiB apart", { size: 13 });
           G.from(a.filter((_, i) => i % 16 === 0), { opacity: 0, stagger: 0.12, duration: 0.2 });
           G.caption("memory moves in lines: use the whole line while you have it");

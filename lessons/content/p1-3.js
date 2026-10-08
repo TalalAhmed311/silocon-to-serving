@@ -59,7 +59,7 @@
     kicker: "Lesson · ≈ 35 min",
     headline: "\"Is it fast?\" is three questions",
     intro: `<p>A user asks "why is it slow?" An operator asks "how many requests can one GPU take?" Both questions have precise answers, but only once you name the clock you are reading. This lesson defines every number used to judge an LLM server: when the first token arrives, how evenly the rest stream, how much work the server finishes per second, and how many requests were actually good enough. Then it shows how those numbers behave as load rises, using the course's own mock server.</p>`,
-    facts: ["10 steps", "4 checkpoints", "1 simulator", "4 exercises"],
+    facts: ["10 steps", "5 checkpoints", "1 simulator", "4 exercises"],
     legend: [["q", "waiting in queue"], ["w", "prefill"], ["k", "token"], ["hot", "missed the target"], ["ok", "good"]],
     prev: "p1-2", next: "p1-4",
     steps: [
@@ -244,7 +244,7 @@ p50: rank 3 → bucket (0.2, 0.5]
           const b = G.bars(60, 250, cum, { w: 70, gap: 30, h: 170, max: 6, fill: (i) => (i === 3 ? "hot" : "k") });
           cum.forEach((c, i) => { G.text(95 + i * 100, 240 - (170 * c) / 6, String(c), { anchor: "middle", size: 13 }); G.label(95 + i * 100, 270, les[i], { anchor: "middle", size: 12, color: "ink" }); });
           G.line(50, 250 - (170 * 5.4) / 6, 560, 250 - (170 * 5.4) / 6, { color: "hot", dash: "5 4" });
-          G.label(400, 250 - (170 * 5.4) / 6 - 8, "rank 5.4 (p90)", { size: 12, color: "hot" });
+          G.label(60, 250 - (170 * 5.4) / 6 - 8, "rank 5.4 (p90)", { size: 12, color: "hot" });
           // interpolation inside (1, 2]
           const X = TL(120, 520, 1, 2);
           G.line(120, 340, 520, 340, { color: "line", w: 2 });
@@ -270,7 +270,7 @@ p50: rank 3 → bucket (0.2, 0.5]
           const rates = [5, 10, 15, 20, 25, 30, 33, 36, 39, 42, 46, 50];
           const p90 = rates.map((r) => pct(simulate(r, 64, 64, 64, 20).reqs.map((x) => x.ttft), 90));
           const thr = rates.map((r) => simulate(r, 64, 64, 64, 20).outTokPerS);
-          G.text(24, 42, "mock server · 64-token prompts and answers", { size: 13 });
+          G.text(24, 28, "mock server · 64-token prompts and answers", { size: 13 });
           const X = (r) => 70 + (r / 52) * 520, Yt = (s) => 200 - (150 * Math.log10(Math.max(s, 0.01) / 0.01)) / 3, Yh = (v) => 390 - (130 * v) / 3000;
           G.axes(70, 50, 530, 150, {}); G.axes(70, 260, 530, 130, {});
           G.label(76, 64, "p90 TTFT (log scale)", { size: 11, color: "hot" });
@@ -341,7 +341,7 @@ r6  TTFT 1.50  TPOT 0.030   bad (TTFT)</div>
           G.text(X(0.12) + 6, 276, "server TTFT", { size: 12, color: "k" });
           const req = G.arrow(X(0.02), 92, X(0.11), 252, { color: "muted", w: 2 });
           const resp = G.arrow(X(0.79), 252, X(0.89), 92, { color: "muted", w: 2 });
-          G.label(X(0.02), 200, "request", { size: 11 }); G.label(X(0.82), 200, "first token", { size: 11 });
+          G.label(X(0.13), 180, "request", { size: 11 }); G.label(X(0.79) - 8, 200, "first token", { size: 11, anchor: "end" });
           G.text(24, 350, "client TTFT − server TTFT = network, TLS, proxies,", { size: 13 });
           G.text(24, 372, "gateways and HTTP handling: worth its own dashboard", { size: 13 });
           G.from([req, resp], { opacity: 0, stagger: 0.5, duration: 0.4 });
@@ -374,7 +374,7 @@ r6  TTFT 1.50  TPOT 0.030   bad (TTFT)</div>
         const pts = rates.map(stat), cur = stat(v.rate);
         const X = (r) => 50 + ((r - 0) / maxR) * 570;
         const Yt = (s) => 120 - (100 * Math.log10(Math.min(Math.max(s, 0.005), 200) / 0.005)) / Math.log10(200 / 0.005);
-        const top = Math.max(10, ...pts.map((p) => p.thr), cur.thr) * 1.1, Yr = (q) => 270 - (110 * q) / top;
+        const top = Math.max(10, ...pts.map((p) => p.thr), cur.thr) * 1.4, Yr = (q) => 270 - (110 * q) / top;
         G.axes(50, 20, 570, 100, {}); G.axes(50, 160, 570, 110, {});
         G.label(56, 32, "p90 TTFT", { size: 11, color: "hot" });
         [0.01, 0.1, 1, 10, 100].forEach((s) => G.label(44, Yt(s) + 4, s >= 1 ? s + "s" : s * 1000 + "ms", { anchor: "end", size: 9 }));

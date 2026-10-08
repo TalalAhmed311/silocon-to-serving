@@ -255,7 +255,7 @@ insert "You are a helpful bot. Use JSON."
         body: `<p>The multi-turn replay is the workload where the prefix cache should win. Predict first with the TTFT model from step 4, using the mock server's prefill cost as a stand-in (0.05 ms per token: the mock's default, which its README says is made up):</p>
 <div class="eq">turn 6, no cache:  1,892 tokens × 0.05 ms ≈ 95 ms
 turn 6, cached:       12 tokens × 0.05 ms ≈ 0.6 ms
-                       (plus queueing and one decode step)</div>
+both: plus queue wait and one decode step</div>
 <p>So with a working cache, TTFT stays nearly flat across turns; without one it climbs with the history. Exercise 2 first checks the climb on the cache-less mock (<code>test_multiturn_mock.py</code>), then fills a table on the GPU with the cache on and off in both engines.</p>
 <p>A fair comparison keeps everything else equal: same model and revision, same KV capacity, same dataset, same sampling settings, warmed up, several runs. Then look for the workload where the other engine wins (exercise 3), and explain it with a mechanism you can point to in code or docs. With no shared prefixes, for instance, a prefix cache gives nothing and the comparison falls back to kernels and scheduling defaults.</p>`,
         scene(G) {
@@ -345,7 +345,7 @@ turn 6, cached:       12 tokens × 0.05 ms ≈ 0.6 ms
     practice: {
       intro: "Use a separate venv for SGLang: its torch and flashinfer pins collide with vLLM's. Same instance and safety rules as P2.1 (aws.md).",
       items: [
-        { title: "Flag-mapping table, verified by --help", tier: "T2 capture · T0 test", goal: "Capture both engines' help text at the pinned versions, then make <code>test_flag_map.py</code> pass and add three rows of your own.",
+        { title: "Flag-mapping table, verified by --help", tier: "T2 capture · T0 test", goal: "Capture both engines' help text at the pinned versions, then make test_flag_map.py pass and add three rows of your own.",
           cmd: "uv run pytest course/P2-serving-engines/P2.2-sglang/exercises/test_flag_map.py" },
         { title: "Multi-turn replay: measure the prefix-cache win", tier: "T0 test · T2", goal: "Check TTFT grows with history on the cache-less mock, then fill the cache on/off table for both engines and explain the growth column.",
           cmd: "uv run pytest course/P2-serving-engines/P2.2-sglang/exercises/test_multiturn_mock.py" },

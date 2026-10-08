@@ -82,17 +82,17 @@ VA 0x7f3a12345678 →
           G.label(24, 108, "9 + 9 + 9 + 9 index bits, 12 offset bits", { size: 12 });
           const tabs = [];
           for (let l = 0; l < 4; l++) {
-            const x = 24 + l * 150, y = 150 + l * 40;
+            const x = 24 + l * 150, y = 136 + l * 30;
             const t = G.group();
-            G.rect(x, y, 110, 150, { stroke: "muted", rx: 6, parent: t });
-            for (let e = 0; e < 6; e++) G.rect(x + 8, y + 10 + e * 22, 94, 16, { fill: e === 3 ? "q" : "line", rx: 3, opacity: e === 3 ? 0.95 : 0.5, parent: t });
-            G.text(x + 55, y + 168, ["PML4", "PDPT", "PD", "PT"][l] + " (512)", { anchor: "middle", size: 11, color: "muted", parent: t });
+            G.rect(x, y, 110, 136, { stroke: "muted", rx: 6, parent: t });
+            for (let e = 0; e < 6; e++) G.rect(x + 8, y + 10 + e * 20, 94, 14, { fill: e === 3 ? "q" : "line", rx: 3, opacity: e === 3 ? 0.95 : 0.5, parent: t });
+            G.text(x + 55, y + 152, ["PML4", "PDPT", "PD", "PT"][l] + " (512)", { anchor: "middle", size: 11, color: "muted", parent: t });
             tabs.push(t);
-            if (l < 3) G.arrow(x + 102, y + 84, x + 148, y + 118, { color: "q", w: 2 });
+            if (l < 3) G.arrow(x + 102, y + 77, x + 148, y + 102, { color: "q", w: 2 });
           }
-          G.arrow(24 + 3 * 150 + 102, 150 + 120 + 84, 600, 404, { color: "k", w: 2 });
-          G.text(596, 412, "frame", { anchor: "end", size: 12, color: "k" });
-          G.label(24, 404, "read 1 → read 2 → read 3 → read 4 → data", { size: 13, color: "hot" });
+          G.arrow(24 + 3 * 150 + 102, 136 + 90 + 77, 604, 370, { color: "k", w: 2 });
+          G.text(600, 388, "frame", { anchor: "end", size: 12, color: "k" });
+          G.label(24, 408, "read 1 → read 2 → read 3 → read 4 → data", { size: 13, color: "hot" });
           G.from(tabs, { opacity: 0, stagger: 0.35, duration: 0.3 });
           G.caption("four dependent reads per translation: the page walk");
         } },
@@ -259,10 +259,10 @@ Linux "fault-around" maps the aligned 64 KiB group
           G.text(24, 40, "model.safetensors", { size: 13 });
           G.box(24, 56, 70, 56, "N", { fill: "v", size: 13 });
           G.box(96, 56, 150, 56, "JSON header", { fill: "q", size: 13 });
-          const t = [["embed", 150], ["layer 0 …", 160], ["lm_head", 104]];
+          const t = [["embed", 130], ["layer 0 …", 140], ["lm_head", 100]];
           let x = 248; const segs = [];
           t.forEach(([n, w], i) => { segs.push(G.box(x, 56, w - 4, 56, n, { fill: i === 0 ? "k" : "w", size: 12 })); x += w; });
-          G.label(24, 130, "8 B", { size: 11 }); G.label(96, 130, "N bytes", { size: 11 }); G.label(248, 130, "raw data, little-endian", { size: 11 });
+          G.label(24, 130, "8 B", { size: 11 }); G.label(96, 130, "N bytes", { size: 11 }); G.label(420, 130, "raw data, little-endian", { size: 11 });
           G.path("M 170 114 C 170 170, 300 170, 300 116", { color: "q", dash: "4 4", arrow: true });
           G.label(140, 184, "\"data_offsets\": [b, e]", { size: 12, color: "q" });
           G.text(24, 240, "ptr = base + 8 + N + b", { size: 15, color: "ok" });
@@ -288,14 +288,15 @@ Linux "fault-around" maps the aligned 64 KiB group
       controls: [
         { id: "ws", label: "working set (log₂ MiB: 0 = 1 MiB … 15 = 32 GiB)", min: 0, max: 15, step: 1, value: 14, format: (v) => F.bytes(2 ** v * MiB) },
         { id: "pg", label: "page size", type: "select", value: 4096, options: [[4096, "4 KiB (x86-64, Linux arm64)"], [16384, "16 KiB (Apple silicon)"], [2097152, "2 MiB (huge page)"]] },
-        { id: "e", label: "TLB entries (example values: check your CPU's manual)", min: 64, max: 4096, step: 64, value: 1536 },
-        { id: "fa", label: "fault-around (pages mapped per fault)", type: "select", value: 16, options: [[1, "1 (off)"], [4, "4"], [16, "16 (Linux default for files, 64 KiB at 4 KiB pages)"]] },
+        { id: "e", label: "TLB entries (example value: check your CPU)", min: 64, max: 4096, step: 64, value: 1536 },
+        { id: "fa", label: "fault-around (pages mapped per fault)", type: "select", value: 16, options: [[1, "1 (off)"], [4, "4"], [16, "16 (Linux file default)"]] },
       ],
       draw(G, v) {
         const ws = 2 ** v.ws * MiB, pg = v.pg, E = v.e;
         const miss = (w, p) => Math.max(0, 1 - (E * p) / w);
         const X = (lg) => 50 + (lg / 15) * 560, Y = (m) => 230 - m * 190;
-        G.axes(50, 40, 570, 190, { xlabel: "working set →", ylabel: "TLB miss rate, random access" });
+        G.axes(50, 40, 570, 190, { ylabel: "TLB miss rate, random access" });
+        G.label(620, 272, "working set (log scale) →", { anchor: "end", size: 11 });
         [0, 0.5, 1].forEach((m) => { G.label(44, Y(m) + 4, `${m * 100}%`, { anchor: "end", size: 10 }); G.line(50, Y(m), 620, Y(m), { color: "line", dash: "2 4", w: 1 }); });
         [0, 5, 10, 15].forEach((lg) => G.label(X(lg), 248, F.bytes(2 ** lg * MiB), { anchor: "middle", size: 10 }));
         const curves = [[4096, "hot", "4 KiB"], [16384, "v", "16 KiB"], [2097152, "ok", "2 MiB"]];
@@ -303,7 +304,7 @@ Linux "fault-around" maps the aligned 64 KiB group
           let d = "";
           for (let s = 0; s <= 150; s++) { const lg = (s / 150) * 15; d += (s ? " L " : "M ") + X(lg).toFixed(1) + " " + Y(miss(2 ** lg * MiB, p)).toFixed(1); }
           G.path(d, { color: col, w: p === pg ? 3 : 1.5, opacity: p === pg ? 1 : 0.6 });
-          G.rect(80 + ci * 90, 50, 10, 10, { fill: col, rx: 2 }); G.label(94 + ci * 90, 59, name, { size: 11 });
+          G.rect(50 + ci * 90, 263, 10, 10, { fill: col, rx: 2 }); G.label(64 + ci * 90, 272, name, { size: 11 });
         });
         G.circle(X(v.ws), Y(miss(ws, pg)), 6, { fill: "ink" });
         const pages = Math.ceil(ws / pg), reach = E * pg, m = miss(ws, pg);
