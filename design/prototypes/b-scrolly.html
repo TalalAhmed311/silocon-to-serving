@@ -1,0 +1,175 @@
+<title>KV Cache Scrollytelling</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+/* Layout: narrative column on the left scrolls; the stage on the right stays put and redraws per step. Dark-first. */
+:root{
+  --bg:#0b1020; --stage:#111a33; --ink:#e9edf7; --muted:#8e9ab8; --rule:#24304f;
+  --k:#38c6e8; --v:#f2a541; --q:#b28dff; --hot:#ff6b6b; --weights:#5a6b94;
+  --f-display:"Bricolage Grotesque",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#f3f5fb; --stage:#ffffff; --ink:#121a33; --muted:#5b6788; --rule:#d7ddeb;
+  --k:#0b8fb3; --v:#c77a12; --q:#7a4fd6; --hot:#d93f3f; --weights:#8c9ab9; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f3f5fb; --stage:#ffffff; --ink:#121a33; --muted:#5b6788; --rule:#d7ddeb;
+  --k:#0b8fb3; --v:#c77a12; --q:#7a4fd6; --hot:#d93f3f; --weights:#8c9ab9; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 var(--f-body);padding-inline:16px;padding-block:0}
+.top{max-width:1180px;margin:0 auto;padding-block:48px 8px}
+.kicker{font:600 12px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--k)}
+h1{font:800 clamp(2rem,5vw,3.4rem)/1.02 var(--f-display);margin:.35em 0 .3em;max-width:18ch;text-wrap:balance}
+.lede{color:var(--muted);max-width:60ch;font-size:1.1rem}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:48px}
+.steps{padding-block:20vh 40vh}
+.step{min-height:78vh;display:flex;align-items:center}
+.card{border-left:3px solid var(--rule);padding:6px 0 6px 18px;transition:border-color .3s,opacity .3s;opacity:.45}
+.step.active .card{border-color:var(--k);opacity:1}
+.card .n{font:600 12px var(--f-mono);color:var(--muted);letter-spacing:.1em}
+.card h2{font:700 1.5rem/1.15 var(--f-display);margin:.25em 0 .4em;text-wrap:balance}
+.card p{margin:0 0 .8em}
+code{font:14px var(--f-mono);background:var(--stage);border:1px solid var(--rule);padding:0 .3em;border-radius:4px}
+.eq{font:14px/1.6 var(--f-mono);background:var(--stage);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;white-space:pre;overflow-x:auto}
+.stagewrap{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;display:flex;align-items:center}
+.stage{width:100%;background:var(--stage);border:1px solid var(--rule);border-radius:14px;padding:14px}
+.stage svg{width:100%;height:auto;display:block}
+svg text{font-family:var(--f-mono)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px var(--f-mono);color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.end{max-width:760px;margin:0 auto;padding-block:40px 80px}
+.end h2{font:700 1.6rem var(--f-display)}
+@media (max-width:820px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+  .stagewrap{order:-1;height:auto;top:0;z-index:2;padding-block:8px;background:var(--bg)}
+  .steps{padding-block:4vh 30vh}
+  .step{min-height:70vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="top">
+  <div class="kicker">P1.2 · Prototype B: scrollytelling</div>
+  <h1>The model that refused to read twice</h1>
+  <p class="lede">Scroll. The picture on the right is a tiny language model generating text. Each step of the story changes it, from the generation loop to the memory bill that decides how many people one GPU can serve.</p>
+</div>
+
+<div class="wrap">
+  <div class="steps" id="steps">
+    <section class="step" data-s="0"><div class="card"><div class="n">STEP 1 / 8</div><h2>Generation is a loop</h2>
+      <p>The model takes every token so far and predicts one more. Append it, call the model again. Five words means five calls.</p></div></section>
+    <section class="step" data-s="1"><div class="card"><div class="n">STEP 2 / 8</div><h2>Every token makes a key and a value</h2>
+      <p>Inside each attention layer, each token is multiplied by learned matrices to make a <b style="color:var(--k)">key</b> ("what I contain") and a <b style="color:var(--v)">value</b> ("what I hand over"). The newest token also makes a <b style="color:var(--q)">query</b> ("what I'm looking for").</p></div></section>
+    <section class="step" data-s="2"><div class="card"><div class="n">STEP 3 / 8</div><h2>The new token looks back</h2>
+      <p>The query is compared with every earlier key. Softmax turns the scores into weights (line thickness). The output is the weighted sum of the values.</p>
+      <div class="eq">out = Σ softmax(q·kᵢ/√d) · vᵢ</div>
+      <p>Tokens only look backwards. So an old token's key and value can never change.</p></div></section>
+    <section class="step" data-s="3"><div class="card"><div class="n">STEP 4 / 8</div><h2>Without memory, everything is recomputed</h2>
+      <p>A naive loop forgets. Every call rebuilds every key and value from scratch, in every layer. The red chips are pure repetition: identical numbers, computed again.</p></div></section>
+    <section class="step" data-s="4"><div class="card"><div class="n">STEP 5 / 8</div><h2>Keep them: the KV cache</h2>
+      <p>Store each key and value the first time. Now a call computes <i>one</i> new key and value, appends them to the shelf, and reads the rest. Work per token drops from growing-with-length to constant.</p></div></section>
+    <section class="step" data-s="5"><div class="card"><div class="n">STEP 6 / 8</div><h2>Prefill: the whole prompt at once</h2>
+      <p>The prompt is known up front, so all its tokens go through the model in one pass. Each weight read from memory is reused by every prompt token: the GPU is busy computing. This pass ends at the first output token (TTFT).</p></div></section>
+    <section class="step" data-s="6"><div class="card"><div class="n">STEP 7 / 8</div><h2>Decode: one token per pass</h2>
+      <p>After that, each pass makes one token. It still reads <i>all</i> the weights (the grey block) and the whole cache, for a single token's worth of math. The GPU mostly waits on memory. The gap between tokens is the ITL.</p></div></section>
+    <section class="step" data-s="7"><div class="card"><div class="n">STEP 8 / 8</div><h2>The memory bill</h2>
+      <p>Each token's cache costs <code>2 × layers × kv_heads × head_dim × bytes</code>. For Llama-3-8B in bf16 that's 128 KiB per token, 1 GiB per 8k-token conversation. Watch users join until the 24 GB GPU is full.</p></div></section>
+  </div>
+  <div class="stagewrap"><div class="stage">
+    <svg id="sv" viewBox="0 0 640 460" role="img" aria-label="Animated model"></svg>
+    <div class="legend"><span><i style="background:var(--k)"></i>key</span><span><i style="background:var(--v)"></i>value</span><span><i style="background:var(--q)"></i>query</span><span><i style="background:var(--hot)"></i>recomputed</span><span><i style="background:var(--weights)"></i>weights</span></div>
+  </div></div>
+</div>
+
+<div class="end">
+  <h2>Practice</h2>
+  <p>Exercise 1: derive bytes per token for five model configs (<code>test_kv.py</code>). Exercise 3: prove cached and uncached logits match. Exercise 4 (hard): a sliding-window ring-buffer cache.</p>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg", sv=document.getElementById("sv");
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el=(t,a,p,tx)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);if(tx!==undefined)n.textContent=tx;(p||sv).appendChild(n);return n};
+const TOK=["The","cache","stores","keys","and","values"];
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const anim=(targets,vars)=>{if(window.gsap&&!reduce&&targets.length)gsap.from(targets,vars)};
+let cur=-1;
+
+function tokens(n,{y=60,label=true}={}){
+  const out=[];for(let i=0;i<n;i++){const x=24+i*100;
+    const g=el("g",{});el("rect",{x,y,width:88,height:40,rx:8,fill:css("--stage"),stroke:css("--ink"),"stroke-opacity":.5},g);
+    if(label)el("text",{x:x+44,y:y+25,"text-anchor":"middle","font-size":14,fill:css("--ink")},g,TOK[i]);out.push(g)}return out}
+function kv(i,y,color,hot){const x=24+i*100;
+  const k=el("rect",{x:x+6,y,width:36,height:26,rx:5,fill:hot?css("--hot"):css("--k")});
+  const v=el("rect",{x:x+46,y,width:36,height:26,rx:5,fill:hot?css("--hot"):css("--v")});
+  el("text",{x:x+24,y:y+17,"text-anchor":"middle","font-size":11,fill:css("--bg")},null,"k");
+  el("text",{x:x+64,y:y+17,"text-anchor":"middle","font-size":11,fill:css("--bg")},null,"v");return[k,v]}
+function caption(t){el("text",{x:24,y:440,"font-size":13,fill:css("--muted")},null,t)}
+
+const scenes=[
+ ()=>{const n=5;const t=tokens(n);el("rect",{x:24+n*100,y:60,width:88,height:40,rx:8,fill:"none",stroke:css("--k"),"stroke-dasharray":"5 4"});
+   el("text",{x:24+n*100+44,y:85,"text-anchor":"middle","font-size":14,fill:css("--k")},null,"?");
+   el("path",{d:"M 300 120 C 300 190, 560 190, 560 110",fill:"none",stroke:css("--muted"),"stroke-dasharray":"4 4"});
+   el("text",{x:330,y:200,"font-size":13,fill:css("--muted")},null,"model( all 5 tokens ) → next token");
+   anim([t[n-1]],{opacity:0,x:-30,duration:.6});caption("call 5 of the loop: the input is every token so far")},
+ ()=>{const n=5;tokens(n);const chips=[];for(let i=0;i<n;i++)chips.push(...kv(i,120));
+   const q=el("rect",{x:24+4*100+26,y:160,width:36,height:26,rx:5,fill:css("--q")});
+   el("text",{x:24+4*100+44,y:177,"text-anchor":"middle","font-size":11,fill:css("--bg")},null,"q");
+   anim(chips,{opacity:0,y:-20,stagger:.05,duration:.4});anim([q],{opacity:0,scale:.3,transformOrigin:"center",delay:.4,duration:.4});
+   caption("x·W_K → key   x·W_V → value   (newest token) x·W_Q → query")},
+ ()=>{const n=5,W=[.08,.31,.12,.36,.13];tokens(n);for(let i=0;i<n;i++)kv(i,120);
+   const qx=24+4*100+44,qy=250;el("rect",{x:qx-18,y:qy,width:36,height:26,rx:5,fill:css("--q")});
+   el("text",{x:qx,y:qy+17,"text-anchor":"middle","font-size":11,fill:css("--bg")},null,"q");
+   const lines=W.map((w,i)=>el("line",{x1:qx,y1:qy,x2:24+i*100+24,y2:146,stroke:css("--q"),"stroke-width":2+w*26,"stroke-opacity":.7,"stroke-linecap":"round"}));
+   W.forEach((w,i)=>el("text",{x:24+i*100+24,y:330,"text-anchor":"middle","font-size":12,fill:css("--ink")},null,w.toFixed(2)));
+   el("text",{x:24,y:360,"font-size":12,fill:css("--muted")},null,"attention weights (sum = 1) → output = Σ weight · v");
+   anim(lines,{attr:{"stroke-width":0},stagger:.08,duration:.5});caption("the query asks every earlier key; thicker = more attention")},
+ ()=>{const n=5;tokens(n);for(let i=0;i<n;i++)kv(i,120,null,i<n-1);
+   el("text",{x:24,y:200,"font-size":14,fill:css("--hot")},null,"call 5 recomputes 4 keys and 4 values it already had");
+   const bars=[];for(let c=1;c<=8;c++){const h=c*16;bars.push(el("rect",{x:24+(c-1)*44,y:390-h,width:30,height:h,fill:css("--hot"),opacity:.8}));
+     el("text",{x:24+(c-1)*44+15,y:408,"text-anchor":"middle","font-size":11,fill:css("--muted")},null,c)}
+   el("text",{x:400,y:300,"font-size":12,fill:css("--muted")},null,"K,V computed per call:");
+   el("text",{x:400,y:320,"font-size":12,fill:css("--muted")},null,"1, 2, 3 … n  →  ~n²/2 total");
+   anim(bars,{attr:{height:0,y:390},stagger:.06,duration:.4});caption("without a cache, work per token grows with the length")},
+ ()=>{const n=5;tokens(n);
+   el("rect",{x:16,y:200,width:520,height:76,rx:10,fill:"none",stroke:css("--k"),"stroke-dasharray":"6 4"});
+   el("text",{x:26,y:194,"font-size":12,fill:css("--k")},null,"KV cache (stored once, read every call)");
+   const old=[];for(let i=0;i<n-1;i++){const x=24+i*100;old.push(el("rect",{x:x+6,y:220,width:36,height:26,rx:5,fill:css("--k")}),el("rect",{x:x+46,y:220,width:36,height:26,rx:5,fill:css("--v")}))}
+   const nw=kv(n-1,120);el("path",{d:`M ${24+4*100+44} 150 L ${24+4*100+44} 214`,stroke:css("--ink"),"stroke-dasharray":"3 3"});
+   const bars=[];for(let c=1;c<=8;c++){bars.push(el("rect",{x:24+(c-1)*44,y:374,width:30,height:16,fill:css("--k")}))}
+   el("text",{x:400,y:370,"font-size":12,fill:css("--muted")},null,"K,V computed per call: 1, 1, 1 …");
+   anim(old,{y:-100,stagger:.04,duration:.5});caption("each call computes one new key/value pair and appends it")},
+ ()=>{tokens(6);const chips=[];for(let i=0;i<6;i++)chips.push(...kv(i,120));
+   el("rect",{x:24,y:220,width:590,height:60,rx:8,fill:css("--weights"),opacity:.5});
+   el("text",{x:34,y:255,"font-size":13,fill:css("--ink")},null,"weights read once · used by all 6 prompt tokens");
+   anim(chips,{opacity:0,duration:.35});
+   el("text",{x:24,y:330,"font-size":14,fill:css("--ink")},null,"one pass · matrix × matrix · compute-bound");
+   caption("prefill fills the cache for the whole prompt in a single pass")},
+ ()=>{tokens(6);for(let i=0;i<6;i++)kv(i,120);
+   const W=el("rect",{x:24,y:220,width:590,height:60,rx:8,fill:css("--weights"),opacity:.5});
+   el("text",{x:34,y:255,"font-size":13,fill:css("--ink")},null,"ALL weights read again… for 1 token");
+   const ticks=[];for(let i=0;i<10;i++)ticks.push(el("rect",{x:24+i*58,y:320,width:44,height:26,rx:4,fill:css("--k")}));
+   el("text",{x:24,y:370,"font-size":12,fill:css("--muted")},null,"each block = one decode pass = one token · gap = inter-token latency");
+   if(window.gsap&&!reduce){gsap.fromTo(W,{opacity:.15},{opacity:.7,duration:.35,repeat:5,yoyo:true});gsap.from(ticks,{opacity:0,stagger:.12,duration:.2})}
+   caption("decode is memory-bound: lots of bytes moved per token produced")},
+ ()=>{const GB=24,W=16,per=1.0;el("text",{x:24,y:40,"font-size":14,fill:css("--ink")},null,"24 GB GPU · Llama-3-8B bf16 · 8k-token conversations");
+   el("rect",{x:24,y:70,width:590,height:60,rx:8,fill:"none",stroke:css("--ink")});
+   const sc=590/GB;el("rect",{x:24,y:70,width:W*sc,height:60,rx:8,fill:css("--weights"),opacity:.7});
+   el("text",{x:34,y:105,"font-size":13,fill:css("--ink")},null,"weights ≈ 16 GB");
+   const users=[];for(let u=0;u<8;u++){const x=24+(W+u*per*1.074)*sc;const over=W+(u+1)*per*1.074>GB;
+     users.push(el("rect",{x,y:70,width:per*1.074*sc-2,height:60,fill:over?css("--hot"):css("--k"),opacity:.85}))}
+   el("text",{x:24,y:170,"font-size":13,fill:css("--muted")},null,"each teal slice = one user's 1 GiB KV cache (1.07 GB)");
+   el("text",{x:24,y:195,"font-size":13,fill:css("--hot")},null,"red = no room: the 8th user doesn't fit");
+   el("text",{x:24,y:250,"font-size":13,fill:css("--ink")},null,"2 × 32 layers × 8 kv_heads × 128 dims × 2 bytes");
+   el("text",{x:24,y:272,"font-size":13,fill:css("--ink")},null,"= 131,072 B = 128 KiB per token");
+   anim(users,{opacity:0,stagger:.25,duration:.3});caption("memory, not compute, caps how many users fit")}
+];
+function show(s){if(s===cur)return;cur=s;while(sv.firstChild)sv.removeChild(sv.firstChild);scenes[s]()}
+const steps=[...document.querySelectorAll(".step")];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){steps.forEach(x=>x.classList.remove("active"));e.target.classList.add("active");show(+e.target.dataset.s)}})},{rootMargin:"-45% 0px -45% 0px"});
+steps.forEach(s=>io.observe(s));
+steps[0].classList.add("active");show(0);
+const redraw=()=>{const c=cur;cur=-1;show(Math.max(0,c))};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redraw);
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+</script>

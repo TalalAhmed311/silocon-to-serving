@@ -1,0 +1,268 @@
+<title>KV Cache Essay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one 68ch reading column; figures break out wider; margin notes on wide screens. */
+:root{
+  --paper:#f7f9fc; --ink:#13203a; --muted:#56637a; --rule:#d9e0ea; --panel:#ffffff;
+  --accent:#2b59c3; --cache:#0f8b8d; --waste:#d1495b; --soft:#e8eef8;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"Source Serif 4",Georgia,serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1522; --ink:#e3e9f4; --muted:#93a0b8; --rule:#26324a; --panel:#151d2e;
+  --accent:#7ea2ff; --cache:#3cc3c4; --waste:#ff7a8a; --soft:#1b2640; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1522; --ink:#e3e9f4; --muted:#93a0b8; --rule:#26324a; --panel:#151d2e;
+  --accent:#7ea2ff; --cache:#3cc3c4; --waste:#ff7a8a; --soft:#1b2640; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:18px/1.65 var(--f-body);padding-inline:16px;padding-block:0 64px}
+.col{max-width:68ch;margin-inline:auto}
+.wide{max-width:960px;margin-inline:auto}
+header{padding-block:56px 24px}
+.kicker{font:600 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:800 clamp(2rem,5vw,3.1rem)/1.08 var(--f-display);margin:.4em 0 .3em;text-wrap:balance;letter-spacing:-.01em}
+h2{font:700 1.55rem/1.2 var(--f-display);margin:2.2em 0 .5em;text-wrap:balance}
+.lede{font-size:1.2rem;color:var(--muted)}
+p{margin:0 0 1em}
+code,.m{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--soft);padding:.05em .35em;border-radius:4px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font:13px/1.4 var(--f-mono);color:var(--muted);margin-top:18px}
+figure{margin:28px auto 34px;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:18px}
+figcaption{font:14px/1.5 var(--f-body);color:var(--muted);margin-top:12px}
+figcaption b{color:var(--ink);font-family:var(--f-display);font-weight:700}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font:13px/1.2 var(--f-mono);color:var(--muted);margin-bottom:12px}
+.ctrl label{display:flex;gap:8px;align-items:center}
+button{font:600 13px/1 var(--f-mono);background:var(--soft);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:9px 12px;cursor:pointer}
+button.on{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{font:13px var(--f-mono);background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:6px}
+input[type=range]{accent-color:var(--accent);width:150px}
+.scroll{overflow-x:auto}
+svg text{font-family:var(--f-mono)}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.stat div{border-top:2px solid var(--rule);padding-top:6px}
+.stat b{display:block;font:700 1.25rem/1.2 var(--f-display);font-variant-numeric:tabular-nums}
+.stat span{font:12px var(--f-mono);color:var(--muted)}
+.eq{font-family:var(--f-mono);font-size:.95rem;background:var(--soft);border-radius:8px;padding:14px 16px;overflow-x:auto;white-space:pre;line-height:1.6}
+.note{border-left:3px solid var(--cache);padding:4px 0 4px 14px;color:var(--muted);font-size:.95rem}
+details{border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin:10px 0;background:var(--panel)}
+summary{cursor:pointer;font-weight:600}
+.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:0}
+.toc{font:14px/1.9 var(--f-mono);color:var(--muted);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding-block:10px;margin-block:22px}
+.toc a{color:var(--accent);text-decoration:none}
+.practice{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.practice a{display:block;border:1px solid var(--rule);border-radius:8px;padding:12px 14px;color:var(--ink);text-decoration:none;background:var(--panel)}
+.practice a small{display:block;color:var(--muted);font:12px var(--f-mono)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="col">
+  <div class="kicker">P1.2 · Inference fundamentals · Prototype A: explorable essay</div>
+  <h1>Why a language model remembers instead of re-reading</h1>
+  <p class="lede">Generating text is a loop that asks the same question again and again. The KV cache is the trick that stops the model from redoing work it already did, and it decides how many users one GPU can serve.</p>
+  <div class="meta"><span>≈ 35 min read</span><span>Tier T0 (no GPU)</span><span>Assumes: Python, basic matrices</span></div>
+  <nav class="toc">
+    <a href="#loop">1 · The generation loop</a> &nbsp; <a href="#attn">2 · What attention needs</a> &nbsp; <a href="#waste">3 · The wasted work</a> &nbsp; <a href="#cache">4 · Cache it</a> &nbsp; <a href="#phases">5 · Prefill and decode</a> &nbsp; <a href="#size">6 · How big is the cache?</a> &nbsp; <a href="#check">Check yourself</a>
+  </nav>
+</header>
+
+<main>
+<section class="col" id="loop">
+  <h2>1. The generation loop</h2>
+  <p>A language model is a function. You give it a list of tokens (pieces of words, each mapped to an integer) and it returns a probability for every token in its vocabulary: how likely each one is to come next.</p>
+  <p>To write a sentence, you call that function, pick a token, append it to the list, and call the function again with the longer list. That's all text generation is. Step through it:</p>
+</section>
+<figure class="wide" id="fig1">
+  <div class="ctrl"><button id="f1next" class="on">Generate next token</button><button id="f1reset">Reset</button><span id="f1info"></span></div>
+  <div class="scroll"><svg id="f1" viewBox="0 0 900 150" width="100%" role="img" aria-label="Generation loop"></svg></div>
+  <figcaption><b>Figure 1.</b> Each call sees every token so far and adds one more. The prompt is blue; generated tokens are teal. Notice that call 5 is fed tokens 1–4 again, unchanged.</figcaption>
+</figure>
+
+<section class="col" id="attn">
+  <h2>2. What attention needs from the past</h2>
+  <p>Inside the model, the part that lets a token use earlier tokens is <em>attention</em>. In every layer, each token is turned into three vectors by multiplying it with three learned weight matrices:</p>
+  <div class="eq">q = x · W_Q     "what am I looking for?"   (query)
+k = x · W_K     "what do I contain?"       (key)
+v = x · W_V     "what do I hand over?"      (value)</div>
+  <p>The newest token compares its query with the key of every earlier token. A dot product measures how well they match. Softmax turns those scores into weights that sum to 1, and the output is the weighted sum of the earlier tokens' values:</p>
+  <div class="eq">score_i  = q_new · k_i / √d          for every earlier token i
+weight_i = softmax(score)_i
+output   = Σ weight_i · v_i</div>
+  <p class="note">The crucial detail: a token may only look <em>backwards</em> (the causal mask). Token 3 never sees token 7. So once token 3's key and value are computed, nothing that happens later can change them.</p>
+</section>
+
+<section class="col" id="waste">
+  <h2>3. The wasted work</h2>
+  <p>Look back at Figure 1. Without any memory, call <i>t</i> recomputes the key and value of all <i>t</i> tokens, in every layer, even though <i>t − 1</i> of them are exactly what the previous call already produced. Drag the slider and count:</p>
+</section>
+<figure class="wide" id="fig2">
+  <div class="ctrl">
+    <label>generated tokens <input id="f2n" type="range" min="1" max="24" value="8"><span id="f2nv" class="m"></span></label>
+    <button id="f2nocache" class="on">No cache</button><button id="f2cache">KV cache</button>
+  </div>
+  <div class="scroll"><svg id="f2" viewBox="0 0 900 330" width="100%" role="img" aria-label="Recompute vs cache grid"></svg></div>
+  <div class="stat">
+    <div><b id="f2work">0</b><span>K,V vectors computed (per layer)</span></div>
+    <div><b id="f2useful">0</b><span>of those actually new</span></div>
+    <div><b id="f2ratio">0</b><span>wasted fraction</span></div>
+  </div>
+  <figcaption><b>Figure 2.</b> Rows are calls to the model, columns are token positions. <span class="key" style="background:var(--waste)"></span>recomputed, <span class="key" style="background:var(--accent)"></span>new this call, <span class="key" style="background:var(--cache)"></span>read from cache. Without a cache, the work grows like n²/2. With one, it grows like n.</figcaption>
+</figure>
+
+<section class="col" id="cache">
+  <h2>4. Cache it</h2>
+  <p>Because past keys and values never change, store them. Each call then does three things for the new token only: compute its <code>q, k, v</code>, append <code>k</code> and <code>v</code> to the cache, and attend over the whole cache. That stored list of keys and values, one pair per token, per layer, is the <strong>KV cache</strong>.</p>
+  <p>Queries are not cached: only the newest token's query is ever used, and it's thrown away after its step.</p>
+  <div class="eq">for each layer:
+    q, k, v = x_new @ W_Q, x_new @ W_K, x_new @ W_V
+    K_cache.append(k);  V_cache.append(v)
+    out = softmax(q @ K_cache.T / sqrt(d)) @ V_cache</div>
+  <p>This is the same code you'll read in <code>platform/engine/v0/reference/llama_numpy.py</code>, where <code>self.k_cache[l, pos] = k</code> is the append.</p>
+</section>
+
+<section class="col" id="phases">
+  <h2>5. Prefill and decode: two very different jobs</h2>
+  <p>With a cache, a request runs in two phases. <strong>Prefill</strong> processes the whole prompt in one forward pass: all prompt tokens go through each weight matrix together, as one big matrix–matrix multiply, and the pass fills the cache and produces the first output token. <strong>Decode</strong> then produces one token per pass.</p>
+  <p>Here is why they behave differently. Every pass must read all the model's weights from GPU memory. In prefill, each weight read is reused for hundreds or thousands of tokens, so the GPU spends its time computing: <em>compute-bound</em>. In decode, each weight read serves a single token, so the GPU spends its time waiting for memory: <em>memory-bound</em>.</p>
+</section>
+<figure class="wide" id="fig3">
+  <div class="ctrl">
+    <label>prompt tokens <input id="f3p" type="range" min="16" max="2048" step="16" value="512"><span id="f3pv" class="m"></span></label>
+    <label>output tokens <input id="f3o" type="range" min="4" max="64" value="24"><span id="f3ov" class="m"></span></label>
+  </div>
+  <div class="scroll"><svg id="f3" viewBox="0 0 900 190" width="100%" role="img" aria-label="Prefill and decode timeline"></svg></div>
+  <figcaption><b>Figure 3.</b> A schematic timeline, not a measurement. Prefill is one long pass whose length grows with the prompt; its end is the <b>time to first token (TTFT)</b>. Each decode pass is short and about the same length; that gap is the <b>inter-token latency (ITL)</b>. Each decode pass reads all the weights for just one token.</figcaption>
+</figure>
+
+<section class="col" id="size">
+  <h2>6. How big is the cache?</h2>
+  <p>Every token stores one key and one value vector, in every layer, for every key/value head. So the size per token is a product of five numbers you can read straight from a model's <code>config.json</code>:</p>
+  <div class="eq">bytes per token = 2 (K and V) × layers × kv_heads × head_dim × bytes per number</div>
+  <p>For Llama-3-8B (32 layers, 8 KV heads, head dimension 128, bf16 = 2 bytes) that is 2 × 32 × 8 × 128 × 2 = 131,072 bytes: <strong>128 KiB for every token</strong>. A single 8,192-token conversation needs 1 GiB of cache. Try other models and settings:</p>
+</section>
+<figure class="wide" id="fig4">
+  <div class="ctrl">
+    <label>model <select id="f4m"><option value="llama8">Llama-3-8B</option><option value="llama70">Llama-3-70B</option><option value="mistral">Mistral-7B</option><option value="mha">Llama-3-8B without GQA (32 KV heads)</option></select></label>
+    <label>dtype <select id="f4d"><option value="2">bf16 (2 B)</option><option value="1">fp8 (1 B)</option><option value="4">fp32 (4 B)</option></select></label>
+    <label>context <input id="f4c" type="range" min="512" max="32768" step="512" value="8192"><span id="f4cv" class="m"></span></label>
+    <label>users <input id="f4b" type="range" min="1" max="64" value="8"><span id="f4bv" class="m"></span></label>
+  </div>
+  <div class="scroll"><svg id="f4" viewBox="0 0 900 120" width="100%" role="img" aria-label="KV cache memory bar"></svg></div>
+  <div class="stat">
+    <div><b id="f4tok">0</b><span>per token</span></div>
+    <div><b id="f4seq">0</b><span>per conversation</span></div>
+    <div><b id="f4all">0</b><span>for all users</span></div>
+  </div>
+  <figcaption><b>Figure 4.</b> The bar is a 24 GB GPU (an NVIDIA L4 has 24 GB). Weights are counted at the same dtype. When weights plus cache pass the edge, this many users can't fit, and the server must queue requests or evict caches. That is the memory problem P2 and P6 solve with paging.</figcaption>
+</figure>
+
+<section class="col" id="check">
+  <h2>Check yourself</h2>
+  <details><summary>Why are queries not stored in the cache?</summary><p>Each query is used once, by the token that made it, in its own step. Later tokens attend with their own queries against old keys and values.</p></details>
+  <details><summary>Generating 1,000 tokens without a cache: roughly how many K,V computations per layer?</summary><p>1 + 2 + … + 1000 ≈ 500,500, against 1,000 with a cache: about 500× more.</p></details>
+  <details><summary>Your model uses 8 KV heads instead of 32 query heads. What does that do to the cache?</summary><p>It shrinks it 4×. That's grouped-query attention (GQA): several query heads share one key/value head.</p></details>
+  <details><summary>Why is decode memory-bound even on a very fast GPU?</summary><p>Each decode pass reads all the weights to produce one token per sequence, so it does about 2 FLOPs per weight byte read. That is far below what any GPU needs to keep its compute units busy. Batching several users into one pass is how servers raise it.</p></details>
+
+  <h2>Practice</h2>
+  <div class="practice">
+    <a href="#">Exercise 1 · KV size<small>derive bytes/token for 5 configs · test_kv.py</small></a>
+    <a href="#">Exercise 2 · Decode crossover<small>where cache beats recompute · T0</small></a>
+    <a href="#">Exercise 3 · Cache correctness<small>cached == uncached logits</small></a>
+    <a href="#">Exercise 4 · Sliding window<small>a ring-buffer cache · hard</small></a>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function el(tag, a, p, t){const n=document.createElementNS(NS,tag);for(const k in a)n.setAttribute(k,a[k]);if(t!==undefined)n.textContent=t;p&&p.appendChild(n);return n}
+function clear(s){while(s.firstChild)s.removeChild(s.firstChild)}
+
+/* Figure 1: generation loop */
+const PROMPT=["The","cache","stores"], GEN=["keys","and","values","for","every","past","token","."];
+let f1=0;
+function drawF1(){
+  const s=$("#f1"); clear(s);
+  const toks=PROMPT.concat(GEN.slice(0,f1)); const w=86,g=8,x0=20;
+  el("text",{x:20,y:24,"font-size":13,fill:css("--muted")},s,`call ${f1+1}: input = ${toks.length} tokens`);
+  toks.forEach((t,i)=>{const x=x0+i*(w+g);const gen=i>=PROMPT.length;
+    el("rect",{x,y:40,width:w,height:40,rx:6,fill:gen?css("--cache"):css("--accent"),opacity:.9},s);
+    el("text",{x:x+w/2,y:65,"text-anchor":"middle","font-size":14,fill:css("--panel")},s,t)});
+  const nx=x0+toks.length*(w+g);
+  if(f1<GEN.length){el("rect",{x:nx,y:40,width:w,height:40,rx:6,fill:"none",stroke:css("--cache"),"stroke-dasharray":"5 4"},s);
+    el("text",{x:nx+w/2,y:65,"text-anchor":"middle","font-size":14,fill:css("--cache")},s,"?");
+    el("text",{x:20,y:118,"font-size":13,fill:css("--ink")},s,`model(${toks.length} tokens) → probabilities → pick "${GEN[f1]}"`);}
+  else el("text",{x:20,y:118,"font-size":13,fill:css("--ink")},s,"done: stop token reached");
+  $("#f1info").textContent=`${f1} generated`;
+}
+$("#f1next").onclick=()=>{if(f1<GEN.length)f1++;drawF1()};
+$("#f1reset").onclick=()=>{f1=0;drawF1()};
+
+/* Figure 2: recompute grid */
+let cacheOn=false;
+function drawF2(){
+  const n=+$("#f2n").value, P=3, s=$("#f2"); clear(s); $("#f2nv").textContent=n;
+  const cols=P+n-1, rows=n, W=860, cw=Math.min(34,W/cols), ch=Math.min(26,290/rows);
+  el("text",{x:20,y:16,"font-size":12,fill:css("--muted")},s,"token position →");
+  let work=0, useful=0;
+  for(let r=0;r<rows;r++){
+    const len=P+r;                 // call r is fed the prompt plus r generated tokens
+    for(let c=0;c<len;c++){
+      const isNew=r===0||c===len-1; // call 0 = the whole prompt is new; later calls add one token
+      if(isNew)useful++;
+      let fill;
+      if(cacheOn){fill=isNew?css("--accent"):css("--cache"); if(isNew)work++;}
+      else {fill=isNew?css("--accent"):css("--waste"); work++;}
+      el("rect",{x:20+c*cw,y:26+r*ch,width:cw-2,height:ch-2,rx:3,fill,opacity:isNew?1:.75},s);
+    }
+  }
+  s.setAttribute("viewBox",`0 0 900 ${Math.max(120,36+rows*ch)}`);
+  $("#f2work").textContent=work.toLocaleString();
+  $("#f2useful").textContent=useful.toLocaleString();
+  $("#f2ratio").textContent=Math.round(100*(work-useful)/work)+"%";
+}
+$("#f2n").oninput=drawF2;
+$("#f2nocache").onclick=()=>{cacheOn=false;$("#f2nocache").classList.add("on");$("#f2cache").classList.remove("on");drawF2()};
+$("#f2cache").onclick=()=>{cacheOn=true;$("#f2cache").classList.add("on");$("#f2nocache").classList.remove("on");drawF2()};
+
+/* Figure 3: prefill/decode timeline (schematic) */
+function drawF3(){
+  const p=+$("#f3p").value,o=+$("#f3o").value,s=$("#f3");clear(s);
+  $("#f3pv").textContent=p;$("#f3ov").textContent=o;
+  const pre=40+p*0.12, dec=14, gap=3, x0=20;
+  const total=pre+o*(dec+gap), k=Math.min(1,860/total);
+  el("rect",{x:x0,y:50,width:pre*k,height:44,rx:5,fill:css("--accent")},s);
+  if(pre*k>70)el("text",{x:x0+8,y:77,"font-size":13,fill:css("--panel")},s,`prefill · ${p} tokens in one pass`);
+  for(let i=0;i<o;i++)el("rect",{x:x0+(pre+i*(dec+gap))*k,y:50,width:Math.max(1,dec*k),height:44,rx:2,fill:css("--cache")},s);
+  const t1=x0+pre*k;
+  el("line",{x1:t1,x2:t1,y1:36,y2:110,stroke:css("--ink"),"stroke-dasharray":"3 3"},s);
+  el("text",{x:Math.min(t1+6,720),y:30,"font-size":12,fill:css("--ink")},s,"first token → TTFT");
+  el("text",{x:x0,y:132,"font-size":12,fill:css("--muted")},s,"time →   each teal bar = one decode pass = one new token (ITL ≈ bar spacing)");
+  el("text",{x:x0,y:160,"font-size":12,fill:css("--muted")},s,"prefill: many tokens per weight read (compute-bound) · decode: one token per weight read (memory-bound)");
+}
+$("#f3p").oninput=drawF3;$("#f3o").oninput=drawF3;
+
+/* Figure 4: KV size */
+const MODELS={llama8:{L:32,kv:8,hd:128,params:8.0},llama70:{L:80,kv:8,hd:128,params:70.6},mistral:{L:32,kv:8,hd:128,params:7.2},mha:{L:32,kv:32,hd:128,params:8.0}};
+const fmt=b=>b>=2**30?(b/2**30).toFixed(2)+" GiB":b>=2**20?(b/2**20).toFixed(1)+" MiB":(b/1024).toFixed(0)+" KiB";
+function drawF4(){
+  const m=MODELS[$("#f4m").value],B=+$("#f4d").value,ctx=+$("#f4c").value,u=+$("#f4b").value,s=$("#f4");clear(s);
+  $("#f4cv").textContent=ctx.toLocaleString();$("#f4bv").textContent=u;
+  const tok=2*m.L*m.kv*m.hd*B, seq=tok*ctx, all=seq*u, w=m.params*1e9*B, gpu=24e9;
+  $("#f4tok").textContent=fmt(tok);$("#f4seq").textContent=fmt(seq);$("#f4all").textContent=fmt(all);
+  const scale=860/Math.max(gpu,w+all)*1, x0=20;
+  el("rect",{x:x0,y:30,width:gpu*scale,height:40,fill:"none",stroke:css("--ink"),"stroke-width":1.5,rx:4},s);
+  el("rect",{x:x0,y:30,width:w*scale,height:40,fill:css("--muted"),opacity:.55,rx:4},s);
+  el("rect",{x:x0+w*scale,y:30,width:all*scale,height:40,fill:(w+all>gpu)?css("--waste"):css("--cache"),opacity:.85},s);
+  el("text",{x:x0,y:20,"font-size":12,fill:css("--muted")},s,`weights ${(w/1e9).toFixed(1)} GB + KV cache ${(all/1e9).toFixed(1)} GB  vs  24 GB GPU`);
+  el("text",{x:x0,y:95,"font-size":13,fill:(w+all>gpu)?css("--waste"):css("--cache")},s,(w+all>gpu)?"does not fit: queue, shorten context, quantize, or add GPUs":"fits on one 24 GB GPU");
+}
+["#f4m","#f4d","#f4c","#f4b"].forEach(i=>$(i).oninput=drawF4);
+
+function all(){drawF1();drawF2();drawF3();drawF4()}
+all();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",all);
+new MutationObserver(all).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+</script>
