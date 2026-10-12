@@ -55,8 +55,10 @@
           });
           G.rect(432, 60, 184, 170, { stroke: "muted", rx: 10 }); G.text(444, 84, "host view (ps)", { color: "muted", size: 13 });
           ["PID 4127 vllm", "PID 4290 mockllm", "PID 1 systemd", "/ = host files"].forEach((t, j) => G.text(444, 118 + j * 28, t, { size: 12, color: j < 2 ? "ink" : "muted" }));
-          G.label(24, 270, "same processes, two views: namespaces decide what each one can see", { color: "ink" });
-          G.label(24, 300, "no guest OS, no boot: a container starts like a process", {});
+          G.label(332, 262, "same processes, two views:", { color: "ink" });
+          G.label(332, 280, "namespaces decide what each sees", { color: "ink" });
+          G.label(332, 312, "no guest OS, no boot:", {});
+          G.label(332, 330, "a container starts like a process", {});
           G.from(g, { opacity: 0, y: -16, stagger: 0.2, duration: 0.4 });
           G.caption("inside, vLLM thinks it is PID 1 on its own machine");
         } },

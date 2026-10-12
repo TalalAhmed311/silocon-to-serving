@@ -49,7 +49,7 @@
         G.label((x1 + x2) / 2, 288, `chunk ${m.chunk}`, { anchor: "middle", size: 11, color: "k" });
       } else {
         arrows.push(G.path(`M ${x1} 282 C ${x1} 336, ${x2} 336, ${x2} 284`, { color: "k", w: 2.5, arrow: true }));
-        G.label((x1 + x2) / 2, 334, `chunk ${m.chunk} (wraps around)`, { anchor: "middle", size: 11, color: "k" });
+        G.label((x1 + x2) / 2, 350, `chunk ${m.chunk} (wraps around)`, { anchor: "middle", size: 11, color: "k" });
       }
     });
     return { cells, arrows };
@@ -288,7 +288,7 @@ n = 8, S = 16 GB, α = 5 µs, B = 100 GB/s (examples)
           G.axes(60, 60, 540, 200, {});
           G.line(60, 60, 600, 60, { color: "hot", dash: "5 4" }); G.label(600, 36, "dashed: the 2 S limit", { anchor: "end", color: "hot" });
           const b = G.bars(90, 260, f, { w: 54, gap: 32, h: 200, max: 2, fill: "k" });
-          ns.forEach((n, i) => { G.label(117 + i * 86, 278, `n = ${n}`, { anchor: "middle", size: 11 }); G.text(117 + i * 86, 250 - (200 * f[i]) / 2, f[i].toFixed(f[i] % 1 ? 3 : 0).replace(/0+$/, "").replace(/\.$/, ""), { anchor: "middle", size: 12, color: "bg" }); });
+          ns.forEach((n, i) => { G.label(117 + i * 86, 278, `n = ${n}`, { anchor: "middle", size: 11 }); G.text(117 + i * 86, 260 - (200 * f[i]) / 2 + 20, f[i].toFixed(f[i] % 1 ? 3 : 0).replace(/0+$/, "").replace(/\.$/, ""), { anchor: "middle", size: 12, color: "bg" }); });
           G.text(24, 330, "T = 2(n−1)·α  +  2(n−1)/n · S/B", { size: 16, color: "ok" });
           G.label(24, 356, "latency term grows with n · bandwidth term is capped at 2 S/B", { size: 12 });
           G.label(24, 380, "n = 8, 16 GB: ring 0.28 s vs naive 2.24 s (B = 100 GB/s example)", { size: 12, color: "ink" });
@@ -323,7 +323,7 @@ n = 8, α = 5 µs, B = 100 GB/s (examples):
           const c = cross(n, a, B);
           G.line(X(c), 50, X(c), 330, { color: "ink", dash: "4 4" }); G.label(X(c) + 6, 64, `crossover ≈ ${(c / 1e6).toFixed(0)} MB`, { color: "ink" });
           G.line(X(8192), 50, X(8192), 330, { color: "hot", dash: "2 4" }); G.label(X(8192) + 6, 120, "TP decode: 8 KiB", { color: "hot" });
-          G.label(X(2e5), 318, "tree: 6α = 30 µs floor", { color: "v", anchor: "middle" }); G.label(X(2e5), 264, "ring: 14α = 70 µs floor", { color: "k", anchor: "middle" });
+          G.label(X(8192) + 8, 318, "tree: 6α = 30 µs floor", { color: "v" }); G.label(X(8192) + 8, 264, "ring: 14α = 70 µs floor", { color: "k" });
           G.label(X(c) - 6, 84, "tree faster ←", { anchor: "end", color: "v" }); G.label(X(c) + 6, 84, "→ ring faster", { color: "k" });
           G.from([p1, p2], { opacity: 0, duration: 0.6 });
           G.caption("n = 8 · α = 5 µs · B = 100 GB/s (example values, idealised model)");
@@ -380,7 +380,7 @@ busbw = algbw × factor, where factor is
         { id: "a", label: "latency α per step, µs (example value: fit yours in exercise 2)", min: 0.5, max: 50, step: 0.5, value: 5, format: (v) => v + " µs" },
         { id: "bw", label: "link bandwidth B, GB/s (example value: check the spec sheet)", min: 5, max: 900, step: 5, value: 100, format: (v) => v + " GB/s" },
         { id: "e", label: "message size per rank", min: 10, max: 32, step: 1, value: 13, format: (v) => sizeLabel(2 ** v) },
-        { id: "p", label: "preset", type: "select", value: "none", options: [["none", "free choice"], ["tp", "TP decode: 1 token × 4096 × bf16"], ["dp", "DP gradients: Llama-3-8B bf16 (16 GB)"]] },
+        { id: "p", label: "preset", type: "select", value: "none", options: [["none", "free choice"], ["tp", "TP decode: 8 KiB"], ["dp", "DP grads: 16 GB"]] },
       ],
       draw(G, v) {
         const n = v.n, a = v.a * 1e-6, B = v.bw * 1e9;
