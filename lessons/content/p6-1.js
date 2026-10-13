@@ -58,10 +58,10 @@
       { rail: "the step loop", title: "Every engine runs the same four-line loop",
         body: `<p>Open any engine (nano-vllm, vLLM, SGLang, ours) and you find the same loop. Each turn of it is one <b>step</b>: one forward pass of the model over a batch of tokens drawn from many requests.</p>
 <div class="eq">while engine.has_unfinished():
-    out    = scheduler.step()        # what to compute
-    logits = runner.execute(out)     # one forward pass
-    tokens = sample(logits)          # which token next
-    scheduler.update(out, tokens)    # append, finish, free</div>
+    out    = scheduler.step()      # what to compute
+    logits = runner.execute(out)   # forward pass
+    tokens = sample(logits)        # which token next
+    scheduler.update(out, tokens)  # append, finish</div>
 <p>In this repository it is <code>LLMEngine.step</code> in <code>platform/engine/v1/s2s_engine/engine.py</code>. In nano-vllm it is <code>LLMEngine.step</code> in <code>engine/llm_engine.py</code>. In vLLM v1 it is <code>EngineCore.step</code>.</p>
 <p>The loop is synchronous: the CPU decides, the GPU computes, the CPU reads the result and decides again. Keep that in mind for step 8.</p>`,
         scene(G) {
@@ -317,7 +317,7 @@ bs = 4, block_table = [5, 2, 7], pos = 9:
       intro: "A simple model of one decode step: a CPU part (Python scheduling per sequence, a fixed per-step cost, and one launch per kernel) and a GPU part (read all weights plus every sequence's KV cache at the memory bandwidth). Every hardware number here is an example value, not a measurement: exercise 2 replaces them with your own timings.",
       height: 280,
       controls: [
-        { id: "w", label: "model weights (GB)", type: "select", value: 1.2, options: [[1.2, "0.6B params, bf16 ≈ 1.2 GB"], [16, "8B params, bf16 ≈ 16 GB"]] },
+        { id: "w", label: "model weights (GB)", type: "select", value: 1.2, options: [[1.2, "0.6B · 1.2 GB"], [16, "8B · 16 GB"]] },
         { id: "ctx", label: "context per sequence (tokens)", min: 128, max: 8192, step: 128, value: 1024 },
         { id: "kvt", label: "KV bytes per token (KiB; Llama-3-8B bf16 = 128)", min: 16, max: 256, step: 16, value: 112 },
         { id: "bw", label: "memory bandwidth, GB/s (example value: check the spec sheet)", min: 200, max: 3500, step: 50, value: 300 },
