@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f) on kind (Docker), with `mockllm` standing in for the GPU backend; ![T3](https://img.shields.io/badge/tier-T3%20AWS%20cluster-red) on EKS with the GPU Operator |
 | **Time** | ≈30 min reading + ≈9 h hands-on |
-| **Prerequisites** | P3.1, P3.2 |
+| **Prerequisites** | [P3.0](../P3.0-containers-and-kubernetes-basics/README.md) (Pods, Deployments, Services, kind), P3.1, P3.2 |
 | **Pinned** | GPU Operator `v26.7.1` (`NVIDIA/gpu-operator@cc6fd600`), k8s-device-plugin `v0.20.1`, dcgm-exporter `4.8.4` |
 
 ## Learning objectives

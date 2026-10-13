@@ -25,7 +25,7 @@
 <p>You only need to know how to write a loop and a function in some language. Scroll: the dark panel redraws for each step.</p>`,
     facts: ["11 steps", "5 checkpoints", "1 simulator", "5 exercises"],
     legend: [["k", "data"], ["v", "neighbour"], ["q", "pointer / char"], ["hot", "padding"], ["ok", "allowed"]],
-    next: "p0-2",
+    prev: "r-7", next: "p0-2",
     steps: [
       { rail: "bytes", title: "Memory is one long line of bytes",
         body: `<p>To the CPU, memory is a numbered line of bytes. Byte 0, byte 1, byte 2, and so on for billions of bytes. The number of a byte is its <b>address</b>. Every variable you create is a run of consecutive bytes somewhere on that line. A <code>float</code> takes 4 bytes; an array of 4 floats takes 16 consecutive bytes.</p>

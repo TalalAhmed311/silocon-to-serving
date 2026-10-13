@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f). Example 02 needs the `torch` extra (CPU only) |
 | **Time** | ≈35 min reading + ≈6 h hands-on |
-| **Prerequisites** | P0.5 (you've implemented every op once already) |
+| **Prerequisites** | P0.5 (you've implemented every op once already), [R.5](../../R-readiness/R.5-maths-and-ml-basics/README.md) (matmul, softmax, what a layer is) |
 | **You will build** | an instrumented NumPy Llama that counts its own FLOPs and bytes; parity with Hugging Face `transformers` |
 
 ## Learning objectives

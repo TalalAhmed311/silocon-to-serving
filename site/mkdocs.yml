@@ -40,12 +40,15 @@ validation:
 nav:
   - Home: README.md
   - Phases:
+      - R Readiness (start here):
+          - Start here: course/R-readiness/README.md
+          - Syllabus: course/R-readiness/syllabus.md
       - P0 Systems primer: course/P0-systems-primer/syllabus.md
       - P1 Inference fundamentals: course/P1-inference-fundamentals/syllabus.md
       - P2 Serving engines: course/P2-serving-engines/syllabus.md
       - P3 Deployment and infra: course/P3-deployment-and-infra/syllabus.md
       - P4 Multi-GPU and distributed: course/P4-multi-gpu-and-distributed/syllabus.md
-      - P5 CUDA deep dive: course/P5-cuda-deep-dive/syllabus.md
+      - P5 CUDA performance deep dive: course/P5-cuda-deep-dive/syllabus.md
       - P6 Engine internals: course/P6-engine-internals/syllabus.md
       - Capstone:
           - Overview: course/capstone/README.md

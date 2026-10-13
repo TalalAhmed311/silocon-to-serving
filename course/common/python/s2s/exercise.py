@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -22,5 +23,6 @@ def load_impl(test_file: str, module: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(f"{ex_dir.name}_{module}", path)
     mod = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
+    sys.modules[spec.name] = mod  # dataclasses and pickling look the module up by name
     spec.loader.exec_module(mod)
     return mod

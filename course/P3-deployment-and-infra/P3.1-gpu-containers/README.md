@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f) for building and inspecting images (Docker, no GPU); ![T2](https://img.shields.io/badge/tier-T2%20one%20GPU-orange) to run the GPU images (`g4dn.xlarge` is enough) |
 | **Time** | ≈25 min reading + ≈7 h hands-on |
-| **Prerequisites** | P2.1 (you know what vLLM needs at runtime) |
+| **Prerequisites** | [P3.0](../P3.0-containers-and-kubernetes-basics/README.md) (images, layers, Dockerfiles), P2.1 (you know what vLLM needs at runtime) |
 | **You will build** | the course images in `env/`, and a Dockerfile policy linter |
 
 ## Learning objectives

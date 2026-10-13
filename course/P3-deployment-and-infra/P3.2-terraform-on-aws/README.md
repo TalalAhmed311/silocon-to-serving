@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f) for writing, validating and policy-testing all the code; ![T3](https://img.shields.io/badge/tier-T3%20AWS%20cluster-red) to apply the EKS stack. The single-node stack is T2 |
 | **Time** | ≈30 min reading + ≈10 h hands-on (≈2 h of EKS uptime) |
-| **Prerequisites** | P2.1 (you've used `infra/aws/single-node`) |
+| **Prerequisites** | P2.1 (you've used `infra/aws/single-node`), R.7 (account, budget, SSO). P2.1 ran this stack as a black box; this module explains how it works |
 | **Pinned** | `terraform-aws-modules/eks` **v21.26.0**, Terraform ≥ 1.6 |
 
 ## Learning objectives

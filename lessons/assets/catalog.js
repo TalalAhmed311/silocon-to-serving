@@ -1,18 +1,27 @@
 /* catalog.js — every lesson in the course, in order. `id` names lessons/<id>.html and lessons/content/<id>.js.
    `src` is the module folder whose exercises and labs form the lesson's Practice tab. */
 window.S2S_CATALOG = [
+  { phase: "R", title: "Readiness", weeks: "0 · before week 1", blurb: "What this course assumes you already know, with a self-check for each skill. Pass a lesson's checkpoints and skip it; otherwise learn it here or from the linked resources first.", lessons: [
+    { id: "r-1", n: "R.1", title: "C and C++ from zero", src: "course/R-readiness/R.1-cpp-from-zero" },
+    { id: "r-2", n: "R.2", title: "Memory: stack, heap and ownership", src: "course/R-readiness/R.2-memory-management" },
+    { id: "r-3", n: "R.3", title: "The terminal, git and building code", src: "course/R-readiness/R.3-terminal-git-build" },
+    { id: "r-4", n: "R.4", title: "Python and NumPy for this course", src: "course/R-readiness/R.4-python-and-numpy" },
+    { id: "r-5", n: "R.5", title: "The maths and ML you need", src: "course/R-readiness/R.5-maths-and-ml-basics" },
+    { id: "r-6", n: "R.6", title: "HTTP and networking basics", src: "course/R-readiness/R.6-http-and-networking" },
+    { id: "r-7", n: "R.7", title: "A safe cloud account", src: "course/R-readiness/R.7-cloud-account-and-cost-safety" } ] },
   { phase: "P0", title: "Systems primer", weeks: "1–3", blurb: "How a computer really runs your code: memory, the OS, threads, caches and SIMD.", lessons: [
     { id: "p0-1", n: "P0.1", title: "C and C++ for systems work", src: "course/P0-systems-primer/P0.1-c-cpp-for-systems" },
     { id: "p0-2", n: "P0.2", title: "Virtual memory and mmap", src: "course/P0-systems-primer/P0.2-virtual-memory-and-mmap" },
     { id: "p0-3", n: "P0.3", title: "Threads, atomics and caches", src: "course/P0-systems-primer/P0.3-threads-atomics-caches" },
     { id: "p0-4", n: "P0.4", title: "SIMD and the roofline", src: "course/P0-systems-primer/P0.4-simd-and-roofline" },
     { id: "p0-5", n: "P0.5", title: "Project: a tiny CPU inference engine", src: "course/P0-systems-primer/P0.5-project-tiny-engine-cpu" } ] },
-  { phase: "P1", title: "Inference fundamentals", weeks: "4–6", blurb: "What happens inside one forward pass, why decoding is slow, and how to size hardware.", lessons: [
+  { phase: "P1", title: "Inference fundamentals", weeks: "4–6", blurb: "What happens inside one forward pass, why decoding is slow, how to size hardware, and your first CUDA program.", lessons: [
     { id: "p1-1", n: "P1.1", title: "The transformer forward pass", src: "course/P1-inference-fundamentals/P1.1-transformer-forward-pass" },
     { id: "p1-2", n: "P1.2", title: "Prefill, decode and the KV cache", src: "course/P1-inference-fundamentals/P1.2-prefill-decode-kv-cache" },
     { id: "p1-3", n: "P1.3", title: "Latency and throughput metrics", src: "course/P1-inference-fundamentals/P1.3-latency-and-throughput-metrics" },
     { id: "p1-4", n: "P1.4", title: "GPU architecture and the roofline", src: "course/P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline" },
-    { id: "p1-5", n: "P1.5", title: "Project: a capacity calculator", src: "course/P1-inference-fundamentals/P1.5-project-capacity-calculator" } ] },
+    { id: "p1-5", n: "P1.5", title: "Project: a capacity calculator", src: "course/P1-inference-fundamentals/P1.5-project-capacity-calculator" },
+    { id: "p1-6", n: "P1.6", title: "Your first CUDA program", src: "course/P1-inference-fundamentals/P1.6-first-cuda-program" } ] },
   { phase: "P2", title: "Serving engines", weeks: "7–12", blurb: "Run real engines, batch requests, quantize, speculate, and put a gateway in front.", lessons: [
     { id: "p2-1", n: "P2.1", title: "First serve with vLLM", src: "course/P2-serving-engines/P2.1-first-serve-with-vllm" },
     { id: "p2-2", n: "P2.2", title: "SGLang and its runtime", src: "course/P2-serving-engines/P2.2-sglang" },
@@ -22,6 +31,7 @@ window.S2S_CATALOG = [
     { id: "p2-6", n: "P2.6", title: "Speculative decoding and CUDA graphs", src: "course/P2-serving-engines/P2.6-speculative-decoding-and-cuda-graphs" },
     { id: "p2-7", n: "P2.7", title: "Gateway basics", src: "course/P2-serving-engines/P2.7-gateway-basics" } ] },
   { phase: "P3", title: "Deployment and infrastructure", weeks: "13–20", blurb: "Containers, Terraform, Kubernetes with GPUs, observability, autoscaling, tenancy and a second cloud.", lessons: [
+    { id: "p3-0", n: "P3.0", title: "Containers and Kubernetes from zero", src: "course/P3-deployment-and-infra/P3.0-containers-and-kubernetes-basics" },
     { id: "p3-1", n: "P3.1", title: "GPU containers", src: "course/P3-deployment-and-infra/P3.1-gpu-containers" },
     { id: "p3-2", n: "P3.2", title: "Terraform on AWS", src: "course/P3-deployment-and-infra/P3.2-terraform-on-aws" },
     { id: "p3-3", n: "P3.3", title: "Kubernetes and the GPU Operator", src: "course/P3-deployment-and-infra/P3.3-kubernetes-and-gpu-operator" },
@@ -36,7 +46,7 @@ window.S2S_CATALOG = [
     { id: "p4-2", n: "P4.2", title: "Parallelism strategies", src: "course/P4-multi-gpu-and-distributed/P4.2-parallelism-strategies" },
     { id: "p4-3", n: "P4.3", title: "Distributed jobs and checkpointing", src: "course/P4-multi-gpu-and-distributed/P4.3-distributed-jobs-and-checkpointing" },
     { id: "p4-4", n: "P4.4", title: "GPU sharing", src: "course/P4-multi-gpu-and-distributed/P4.4-gpu-sharing" } ] },
-  { phase: "P5", title: "CUDA deep dive", weeks: "25–34", blurb: "Write fast GPU kernels: the execution model, memory, reductions, GEMM, tensor cores, FlashAttention, Triton.", lessons: [
+  { phase: "P5", title: "CUDA performance deep dive", weeks: "25–34", blurb: "Make GPU kernels fast: the execution model in depth, memory, reductions, GEMM, tensor cores, FlashAttention, Triton. Assumes P1.6 and Lane B L1–L3.", lessons: [
     { id: "p5-1", n: "P5.1", title: "The CUDA execution model", src: "course/P5-cuda-deep-dive/P5.1-execution-model" },
     { id: "p5-2", n: "P5.2", title: "Coalescing and shared memory", src: "course/P5-cuda-deep-dive/P5.2-memory-coalescing-and-shared-memory" },
     { id: "p5-3", n: "P5.3", title: "Profiling with Nsight", src: "course/P5-cuda-deep-dive/P5.3-profiling-with-nsight" },
@@ -58,7 +68,7 @@ window.S2S_CATALOG = [
   { phase: "Cap", title: "Capstone", weeks: "41–44", blurb: "Survive a region failure, then publish a benchmark teardown anyone can reproduce.", lessons: [
     { id: "c1", n: "C1", title: "Multi-region failover", src: "course/capstone/C1-multi-region-failover" },
     { id: "c2", n: "C2", title: "The public benchmark teardown", src: "course/capstone/C2-public-benchmark-teardown" } ] },
-  { phase: "Lane B", title: "CUDA on LeetGPU", weeks: "1–44", blurb: "The concepts behind each level of kernel problems, then the problems themselves.", lessons: [
+  { phase: "Lane B", title: "CUDA on LeetGPU", weeks: "1–44", blurb: "The concepts behind each level of kernel problems, then the problems themselves. Weeks 1–5 are an optional no-GPU warm-up; real kernels start in week 6, after P1.6.", lessons: [
     { id: "l1", n: "L1", title: "Launches and indexing", src: "laneB-cuda/L1-launch-and-indexing" },
     { id: "l2", n: "L2", title: "Memory and shared memory", src: "laneB-cuda/L2-memory-and-shared-memory" },
     { id: "l3", n: "L3", title: "Reductions and scans", src: "laneB-cuda/L3-reductions-and-scans" },

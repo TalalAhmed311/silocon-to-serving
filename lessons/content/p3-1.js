@@ -12,7 +12,7 @@
     intro: `<p>P2 ran vLLM on one machine that you set up by hand. To run it on a fleet, every node must get exactly the same files. This lesson builds that idea from the ground up: what a container really is (a normal Linux process with a restricted view and a budget), how an image is stored as layers, why the GPU driver is the one thing a container cannot bring with it, and why image size turns into seconds of cold start.</p>`,
     facts: ["11 steps", "4 checkpoints", "1 simulator", "4 exercises"],
     legend: [["k", "container / image"], ["w", "host"], ["ok", "fine"], ["hot", "problem"]],
-    prev: "p2-7", next: "p3-2",
+    prev: "p3-0", next: "p3-2",
     steps: [
       { rail: "the problem", title: "A program is more than its code",
         body: `<p>Your vLLM server is a few hundred lines of your own code. To run, it also needs a Python interpreter of the right version, hundreds of Python packages (torch, vLLM, their dependencies), system libraries such as <code>glibc</code> and <code>libgomp</code>, and the CUDA libraries that torch was built against.</p>
