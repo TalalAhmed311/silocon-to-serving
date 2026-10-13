@@ -2,7 +2,7 @@
 #include <cstring>
 
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static bool g_bench = false;
@@ -31,7 +31,7 @@ S2S_TEST(bench) {
   const double copy = s2s::measure_copy_gbs();
   s2s::table_header("GB/s");
   for (int cols : {4096, 8192}) {
-    s2s::DeviceBuffer<float> x(size_t(rows) * cols), w(size_t(cols)), y(size_t(rows) * cols);
+    s2s::DeviceBuffer<float> x(size_t(rows) * cols), w(static_cast<size_t>(cols)), y(size_t(rows) * cols);
     x.zero(); w.zero();
     auto t = s2s::time_gpu([&] { rmsnorm(x.get(), w.get(), y.get(), rows, cols, 1e-6f); });
     s2s::report("rmsnorm", "yours, hidden " + std::to_string(cols), double(rows) * cols, t,

@@ -14,7 +14,7 @@ __global__ void add_inplace(const __nv_bfloat16* x, __nv_bfloat16* r, long long 
 int main() {
   const int rows = 16384, cols = 4096;
   const long long n = (long long)rows * cols;
-  s2s::DeviceBuffer<__nv_bfloat16> x(size_t(n)), r(size_t(n)), w(size_t(cols)), y(size_t(n));
+  s2s::DeviceBuffer<__nv_bfloat16> x(static_cast<size_t>(n)), r(static_cast<size_t>(n)), w(static_cast<size_t>(cols)), y(static_cast<size_t>(n));
   x.zero(); r.zero(); w.zero();
   int sms = 0;
   CUDA_CHECK(cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, 0));

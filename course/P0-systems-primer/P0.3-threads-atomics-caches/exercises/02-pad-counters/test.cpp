@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(one_line_per_slot) {
   CHECK_EQ(sizeof(Slot), size_t(64));

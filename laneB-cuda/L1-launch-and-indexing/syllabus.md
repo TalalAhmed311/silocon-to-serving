@@ -1,6 +1,8 @@
 # L1 — Launch, 1D/2D indexing, bounds, copies, error checks
 
-**Weeks 1–6 (alongside P0–P1) · 3–4 problems/week ≈ 4 h/week · Tier T1 (LeetGPU), T2 optional via `harness/`**
+**Weeks 6–10 (after P1.6, alongside the end of P1 and P2) · 3–4 problems/week ≈ 4 h/week · Tier T1 (LeetGPU), T2 optional via `harness/`**
+
+**Prerequisite: P1.6** ([Your first CUDA program](../../course/P1-inference-fundamentals/P1.6-first-cuda-program/README.md)). It teaches the host/device split, `nvcc`, the five-step host program and `CUDA_CHECK`, which L1 uses without re-teaching. Weeks 1–5 can be the optional L0 warm-up (srush/GPU-Puzzles, no GPU).
 
 **Objectives.**
 1. Write `<<<grid, block>>>` launches with the ceil-div idiom.

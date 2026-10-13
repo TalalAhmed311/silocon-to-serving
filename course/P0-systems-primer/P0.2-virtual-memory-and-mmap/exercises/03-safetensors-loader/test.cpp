@@ -2,7 +2,7 @@
 #include <string>
 
 #include <s2s/check.hpp>
-#include "validate.hpp"
+#include <validate.hpp>
 
 static std::string dir = "build/st-test";
 

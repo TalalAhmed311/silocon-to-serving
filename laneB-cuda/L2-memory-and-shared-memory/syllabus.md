@@ -1,6 +1,6 @@
 # L2 — Coalescing, shared memory, `__syncthreads`, bank conflicts, atomics, occupancy
 
-**Weeks 7–14 (alongside P2) · 3–4 problems/week · Tier T1 + T2 (bandwidth numbers need a real GPU and the harness)**
+**Weeks 11–16 (alongside P2–P3) · 3–4 problems/week · Tier T1 + T2 (bandwidth numbers need a real GPU and the harness)**
 
 **Objectives.**
 1. Make every global access coalesced.

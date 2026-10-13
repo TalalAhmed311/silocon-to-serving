@@ -2,7 +2,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "prefetch.hpp"
+#include <prefetch.hpp>
 
 static const char* kPath = "prefetch_test.bin";
 

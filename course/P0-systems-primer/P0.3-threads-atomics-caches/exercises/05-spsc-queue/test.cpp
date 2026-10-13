@@ -1,7 +1,7 @@
 #include <thread>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(empty_and_full) {
   SpscQueue<int, 4> q;

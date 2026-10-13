@@ -19,7 +19,7 @@ static double g_copy = 0;
 
 static void bench_reduce() {
   const long long n = 1LL << 26;
-  s2s::DeviceBuffer<float> in(size_t(n)), out(1), partial(size_t(n / 256 + 1));
+  s2s::DeviceBuffer<float> in(static_cast<size_t>(n)), out(1), partial(size_t(n / 256 + 1));
   in.zero();
   s2s::table_header("GB/s");
   for (int r : {3, 5, 6}) {
@@ -35,8 +35,8 @@ static void bench_reduce() {
 
 static void bench_scan() {
   const int n = 1 << 26, tiles = d4::ceil_div(n, d4::SCAN_TILE_N);
-  s2s::DeviceBuffer<float> in(size_t(n)), out(size_t(n));
-  s2s::DeviceBuffer<unsigned long long> st(size_t(tiles));
+  s2s::DeviceBuffer<float> in(static_cast<size_t>(n)), out(static_cast<size_t>(n));
+  s2s::DeviceBuffer<unsigned long long> st(static_cast<size_t>(tiles));
   s2s::DeviceBuffer<unsigned> ctr(1);
   in.zero();
   s2s::table_header("GB/s");
@@ -59,7 +59,7 @@ static void bench_softmax() {
 
 static void bench_rmsnorm() {
   const int rows = 16384, cols = 4096;
-  s2s::DeviceBuffer<__nv_bfloat16> x(size_t(rows) * cols), r(size_t(rows) * cols), w(size_t(cols)), y(size_t(rows) * cols);
+  s2s::DeviceBuffer<__nv_bfloat16> x(size_t(rows) * cols), r(size_t(rows) * cols), w(static_cast<size_t>(cols)), y(size_t(rows) * cols);
   x.zero(); r.zero(); w.zero();
   s2s::table_header("GB/s");
   auto t1 = s2s::time_gpu([&] { d4::rmsnorm(x.get(), w.get(), y.get(), rows, cols); });

@@ -5,7 +5,7 @@
 static void check(int N, float gamma, float lambda) {
   auto r = s2s::random_vec<float>(size_t(N), -1, 1, unsigned(N)), v = s2s::random_vec<float>(size_t(N) + 1, -2, 2, unsigned(N + 1));
   auto di = s2s::random_vec<int>(size_t(N), 0, 49, unsigned(N + 2));
-  std::vector<float> d(size_t(N)), want(size_t(N));
+  std::vector<float> d(static_cast<size_t>(N)), want(static_cast<size_t>(N));
   for (int t = 0; t < N; ++t) d[size_t(t)] = di[size_t(t)] == 0 ? 1.f : 0.f;   // ~2% episode ends
   double A = 0;
   for (int t = N - 1; t >= 0; --t) {
@@ -14,7 +14,7 @@ static void check(int N, float gamma, float lambda) {
     A = delta + gamma * lambda * nd * A;
     want[size_t(t)] = float(A);
   }
-  s2s::DeviceBuffer<float> dr(r), dv(v), dd(d), da(size_t(N));
+  s2s::DeviceBuffer<float> dr(r), dv(v), dd(d), da(static_cast<size_t>(N));
   solve(dr.get(), dv.get(), dd.get(), da.get(), N, gamma, lambda);
   CUDA_CHECK_LAUNCH();
   auto got = da.download();

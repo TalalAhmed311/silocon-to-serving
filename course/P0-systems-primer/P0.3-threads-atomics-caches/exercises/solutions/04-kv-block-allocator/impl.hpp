@@ -8,8 +8,8 @@
 
 class BlockAllocator {
  public:
-  explicit BlockAllocator(int num_blocks) : refcnt_(size_t(num_blocks), 0) {
-    free_.reserve(size_t(num_blocks));
+  explicit BlockAllocator(int num_blocks) : refcnt_(static_cast<size_t>(num_blocks), 0) {
+    free_.reserve(static_cast<size_t>(num_blocks));
     for (int b = num_blocks - 1; b >= 0; --b) free_.push_back(b);  // block 0 on top: handed out first
   }
 
@@ -22,7 +22,7 @@ class BlockAllocator {
     std::lock_guard g(mu_);
     if (n < 0 || size_t(n) > free_.size()) return {};  // all-or-nothing: decide before taking anything
     std::vector<int> out;
-    out.reserve(size_t(n));
+    out.reserve(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) out.push_back(*allocate_locked());
     return out;
   }
@@ -48,7 +48,7 @@ class BlockAllocator {
     return *fresh;
   }
 
-  int refcount(int block) const { std::lock_guard g(mu_); return refcnt_.at(size_t(block)); }
+  int refcount(int block) const { std::lock_guard g(mu_); return refcnt_.at(static_cast<size_t>(block)); }
   int num_free() const { std::lock_guard g(mu_); return int(free_.size()); }
   int num_blocks() const { return int(refcnt_.size()); }
 

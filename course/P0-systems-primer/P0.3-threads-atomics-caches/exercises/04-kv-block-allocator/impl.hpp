@@ -7,7 +7,7 @@
 
 class BlockAllocator {
  public:
-  explicit BlockAllocator(int num_blocks) : refcnt_(size_t(num_blocks), 0) {
+  explicit BlockAllocator(int num_blocks) : refcnt_(static_cast<size_t>(num_blocks), 0) {
     // TODO: fill free_ so that block 0 is handed out first
   }
   std::optional<int> allocate() { return std::nullopt; /* TODO */ }
@@ -15,7 +15,7 @@ class BlockAllocator {
   void share(int block) { (void)block; /* TODO */ }
   void free(int block) { (void)block; /* TODO */ }
   int copy_on_write(int block) { return block; /* TODO */ }
-  int refcount(int block) const { std::lock_guard g(mu_); return refcnt_.at(size_t(block)); }
+  int refcount(int block) const { std::lock_guard g(mu_); return refcnt_.at(static_cast<size_t>(block)); }
   int num_free() const { std::lock_guard g(mu_); return int(free_.size()); }
   int num_blocks() const { return int(refcnt_.size()); }
 

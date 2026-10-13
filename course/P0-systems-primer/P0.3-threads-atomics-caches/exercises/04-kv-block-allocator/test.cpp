@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(allocate_until_empty) {
   BlockAllocator a(3);

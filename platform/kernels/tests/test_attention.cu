@@ -15,7 +15,7 @@ static std::vector<float> to_f(const std::vector<h16>& v) { std::vector<float> o
 static std::vector<float> ref_attn(const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, int BH, int N, bool causal) {
   std::vector<float> o(size_t(BH) * N * D);
   const double sc = 1.0 / std::sqrt(double(D));
-  std::vector<double> s(size_t(N));
+  std::vector<double> s(static_cast<size_t>(N));
   for (int bh = 0; bh < BH; ++bh)
     for (int i = 0; i < N; ++i) {
       double m = -1e300;
@@ -75,7 +75,7 @@ S2S_TEST(paged_decode) {
   for (int b = 0; b < B; ++b)
     for (int h = 0; h < H; ++h) {
       const int kvh = h / (H / Hkv), len = lens[size_t(b)];
-      std::vector<double> s(size_t(len));
+      std::vector<double> s(static_cast<size_t>(len));
       double m = -1e300, l = 0;
       for (int t = 0; t < len; ++t) {
         const int phys = table[size_t(b) * max_blocks + t / bs];

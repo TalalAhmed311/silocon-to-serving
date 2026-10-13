@@ -9,7 +9,7 @@ S2S_TEST(matches_cpu) {
     const int n = 10007;
     auto in = s2s::random_vec<int32_t>(size_t(n), -1000000, 1000000, unsigned(R));
     s2s::DeviceBuffer<int32_t> din(in);
-    s2s::DeviceBuffer<uint32_t> dout(size_t(n));
+    s2s::DeviceBuffer<uint32_t> dout(static_cast<size_t>(n));
     solve(din.get(), dout.get(), n, R);
     CUDA_CHECK_LAUNCH();
     auto out = dout.download();

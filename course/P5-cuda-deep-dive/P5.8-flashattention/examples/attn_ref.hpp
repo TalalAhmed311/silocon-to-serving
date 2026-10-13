@@ -15,7 +15,7 @@ inline std::vector<float> to_f(const std::vector<__half>& v) { std::vector<float
 inline std::vector<float> attention(const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, int BH, int N, bool causal) {
   std::vector<float> o(size_t(BH) * N * D);
   const double sc = 1.0 / std::sqrt(double(D));
-  std::vector<double> s(size_t(N));
+  std::vector<double> s(static_cast<size_t>(N));
   for (int bh = 0; bh < BH; ++bh)
     for (int i = 0; i < N; ++i) {
       double m = -1e300, l = 0;

@@ -36,7 +36,7 @@
     intro: `<p>In P1 you treated the model as a function you call. A real deployment is different: many people send requests over the network at once, each one wants its tokens streamed back quickly, and one GPU has to serve all of them. A <b>serving engine</b> is the program that does this. This lesson runs the most widely used open-source one, vLLM, and explains every number it prints at start-up using the arithmetic you already know from P1.2, P1.4 and P1.5.</p>`,
     facts: ["10 steps", "4 checkpoints", "1 simulator", "4 exercises"],
     legend: [["w", "weights"], ["k", "KV cache"], ["q", "activations"], ["muted", "reserved"], ["hot", "problem"]],
-    prev: "p1-5", next: "p2-2",
+    prev: "p1-6", next: "p2-2",
     steps: [
       { rail: "why a server", title: "One GPU, many users: why a serving engine exists",
         body: `<p>In P1.2 you wrote the generation loop for one prompt. Now imagine 50 people chatting with the same model. Running their loops one after another would make person 50 wait for 49 complete answers. Running 50 separate copies of the model would need 50 copies of the 16 GB of weights.</p>

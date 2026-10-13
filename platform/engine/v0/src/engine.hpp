@@ -40,7 +40,7 @@ class Engine {
     final_norm_ = tensor("model.norm.weight", {d});
     lm_head_ = cfg_.tie_embeddings ? embed_ : tensor("lm_head.weight", {cfg_.vocab_size, d});
     // Activations and the KV cache are the only memory we allocate; weights stay in the page cache.
-    x_.resize(size_t(d)); xb_.resize(size_t(d)); q_.resize(size_t(d)); att_out_.resize(size_t(d));
+    x_.resize(static_cast<size_t>(d)); xb_.resize(static_cast<size_t>(d)); q_.resize(static_cast<size_t>(d)); att_out_.resize(static_cast<size_t>(d));
     hb_.resize(size_t(cfg_.hidden_dim)); hb2_.resize(size_t(cfg_.hidden_dim));
     logits_.resize(size_t(cfg_.vocab_size)); scratch_.resize(size_t(cfg_.max_seq_len));
     k_cache_.assign(size_t(cfg_.n_layers) * cfg_.max_seq_len * kv, 0.0f);

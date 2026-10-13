@@ -27,7 +27,7 @@ S2S_TEST(exact_sizes) {
 
 S2S_TEST(in_place) {
   const int N = 50000;
-  std::vector<float> f(size_t(N), 1.f);
+  std::vector<float> f(static_cast<size_t>(N), 1.f);
   s2s::DeviceBuffer<float> d(f);
   solve(d.get(), d.get(), N);
   CUDA_CHECK_LAUNCH();
@@ -39,7 +39,7 @@ S2S_TEST(in_place) {
 S2S_TEST(bench) {
   if (!g_bench) return;
   const int N = 1 << 26;
-  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(N))), out(size_t(N));
+  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(N))), out(static_cast<size_t>(N));
   s2s::table_header("GB/s");
   const double copy = s2s::measure_copy_gbs();
   auto t = s2s::time_gpu([&] { solve(in.get(), out.get(), N); });

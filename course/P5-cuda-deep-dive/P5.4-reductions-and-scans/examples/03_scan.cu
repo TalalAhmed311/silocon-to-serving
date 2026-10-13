@@ -9,8 +9,8 @@
 
 int main() {
   const int n = 1 << 26, tiles = d4::ceil_div(n, d4::SCAN_TILE_N);
-  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(n))), out(size_t(n));
-  s2s::DeviceBuffer<unsigned long long> status(size_t(tiles));
+  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(n))), out(static_cast<size_t>(n));
+  s2s::DeviceBuffer<unsigned long long> status(static_cast<size_t>(tiles));
   s2s::DeviceBuffer<unsigned> counter(1);
   const double copy = s2s::measure_copy_gbs();
   s2s::table_header("GB/s");

@@ -10,7 +10,7 @@ int main() {
   for (int cols : {4096, 8192}) {
     const int rows = 16384;
     s2s::DeviceBuffer<float> x(s2s::random_vec<float>(size_t(rows) * cols)), w(s2s::random_vec<float>(size_t(cols))), y(size_t(rows) * cols);
-    s2s::DeviceBuffer<__nv_bfloat16> xb(size_t(rows) * cols), wb(size_t(cols)), yb(size_t(rows) * cols);
+    s2s::DeviceBuffer<__nv_bfloat16> xb(size_t(rows) * cols), wb(static_cast<size_t>(cols)), yb(size_t(rows) * cols);
     std::printf("\nrows %d × hidden %d\n", rows, cols);
     s2s::table_header("GB/s");
     auto t1 = s2s::time_gpu([&] { d4::rmsnorm_k<float><<<rows, 256>>>(x.get(), w.get(), y.get(), cols, 1e-6f); });

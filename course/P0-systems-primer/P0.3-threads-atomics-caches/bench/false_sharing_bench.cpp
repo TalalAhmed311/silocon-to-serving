@@ -17,7 +17,7 @@ constexpr long kIters = 20'000'000;
 
 template <class C>
 double ns_per_op(int threads) {
-  std::vector<C> c(size_t(threads));
+  std::vector<C> c(static_cast<size_t>(threads));
   auto t = s2s::time_fn([&] {
     std::vector<std::thread> ts;
     for (int i = 0; i < threads; ++i)

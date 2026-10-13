@@ -4,7 +4,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 static_assert(!std::is_copy_constructible_v<Tensor>, "Tensor must be move-only");
 static_assert(std::is_nothrow_move_constructible_v<Tensor>, "move ctor must be noexcept (std::vector relies on it)");

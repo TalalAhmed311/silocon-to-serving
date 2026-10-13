@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "q8.hpp"
+#include <q8.hpp>
 
 S2S_TEST(round_trip_within_half_scale) {
   std::mt19937 rng(3);

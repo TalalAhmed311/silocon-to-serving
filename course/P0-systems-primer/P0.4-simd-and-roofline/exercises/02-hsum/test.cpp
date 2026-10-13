@@ -1,7 +1,7 @@
 #include <random>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(random_vectors) {
   std::mt19937 rng(7);

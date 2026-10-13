@@ -1,6 +1,6 @@
 #include <s2s/check.hpp>
 #include "attn_ref.hpp"
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 // Build the paged cache from contiguous per-sequence K/V, run the kernel, and compare with the dense reference for the

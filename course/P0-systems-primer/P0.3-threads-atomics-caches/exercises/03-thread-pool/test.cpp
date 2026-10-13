@@ -3,10 +3,10 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 static int64_t par_sum(ThreadPool& p, int64_t n) {
-  std::vector<int64_t> out(size_t(n), 0);
+  std::vector<int64_t> out(static_cast<size_t>(n), 0);
   p.parallel_for(n, [&](int64_t b, int64_t e) { for (int64_t i = b; i < e; ++i) out[size_t(i)] = i; });
   int64_t s = 0;
   for (auto v : out) s += v;

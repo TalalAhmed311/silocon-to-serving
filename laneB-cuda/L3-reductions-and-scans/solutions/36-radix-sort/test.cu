@@ -32,7 +32,7 @@ S2S_TEST(bench) {
   const int N = 1 << 24;
   auto v = s2s::random_vec<long long>(size_t(N), 0, 0xFFFFFFFFLL);
   std::vector<unsigned> host(v.begin(), v.end());
-  s2s::DeviceBuffer<unsigned> d(host), o(size_t(N));
+  s2s::DeviceBuffer<unsigned> d(host), o(static_cast<size_t>(N));
   s2s::table_header("Mkeys/s");
   auto t = s2s::time_gpu([&] { solve(d.get(), N); }, 1, 10);    // re-sorting sorted data costs the same for LSD radix
   s2s::report("radix_sort", "ours (8-bit LSD, 3-phase)", N, t, N / (t.median_ms * 1e3), "Mkeys/s", 0);

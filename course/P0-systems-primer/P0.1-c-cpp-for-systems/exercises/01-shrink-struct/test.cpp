@@ -2,7 +2,7 @@
 #include <type_traits>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 // Every field must still exist with its original type.
 static_assert(std::is_same_v<decltype(RequestRecord::request_id), uint64_t>);

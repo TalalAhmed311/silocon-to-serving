@@ -9,8 +9,8 @@ static void check(int N, int k) {
   auto in = s2s::random_vec<float>(size_t(N), -1e4, 1e4, unsigned(N + k));
   auto want = in;
   std::sort(want.begin(), want.end(), std::greater<float>());
-  want.resize(size_t(k));
-  s2s::DeviceBuffer<float> din(in), dout(size_t(k));
+  want.resize(static_cast<size_t>(k));
+  s2s::DeviceBuffer<float> din(in), dout(static_cast<size_t>(k));
   solve(din.get(), dout.get(), N, k);
   CUDA_CHECK_LAUNCH();
   auto got = dout.download();

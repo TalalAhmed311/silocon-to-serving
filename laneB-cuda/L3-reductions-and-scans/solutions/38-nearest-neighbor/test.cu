@@ -10,7 +10,7 @@ static bool g_bench = false;
 static void check(int N) {
   auto p = s2s::random_vec<float>(size_t(N) * 3, -100, 100, unsigned(N));
   s2s::DeviceBuffer<float> dp(p);
-  s2s::DeviceBuffer<int> di(size_t(N));
+  s2s::DeviceBuffer<int> di(static_cast<size_t>(N));
   solve(dp.get(), di.get(), N);
   CUDA_CHECK_LAUNCH();
   auto got = di.download();
@@ -34,7 +34,7 @@ S2S_TEST(bench) {
   if (!g_bench) return;
   const int N = 1 << 16;
   s2s::DeviceBuffer<float> p(s2s::random_vec<float>(size_t(N) * 3));
-  s2s::DeviceBuffer<int> i(size_t(N));
+  s2s::DeviceBuffer<int> i(static_cast<size_t>(N));
   s2s::table_header("Gpairs/s");
   auto t = s2s::time_gpu([&] { solve(p.get(), i.get(), N); }, 2, 10);
   s2s::report("nearest_neighbor", "smem tiles, broadcast", N, t, double(N) * N / (t.median_ms * 1e6), "Gpairs/s", 0);

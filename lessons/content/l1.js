@@ -16,10 +16,11 @@
 
   S2S.lesson({
     id: "l1", n: "L1", title: "Launches and indexing",
-    subtitle: "Lane B · CUDA on LeetGPU · T1 browser or T2 harness",
+    subtitle: "Lane B · CUDA on LeetGPU · after P1.6 · T1 browser or T2 harness",
     kicker: "Lesson · ≈ 45 min",
     headline: "A million workers, each asking “which one is mine?”",
     intro: `<p>A GPU kernel is a function that thousands of threads run at the same time. Every thread runs the <i>same</i> code, so the first thing each one must do is work out which piece of the data belongs to it. That one calculation, the <b>index</b>, is what every L1 problem tests.</p>
+<p><b>Prerequisite: P1.6.</b> Do P1.6 (your first CUDA program) before this lesson. It teaches the toolchain, the host and device split, the five-step host program and error checks. This lesson uses them and goes deeper on indexing. Weeks 1 to 5 can be the optional no-GPU warm-up (GPU-Puzzles); L1 runs in weeks 6 to 10.</p>
 <p>The dark panel builds it up: the thread hierarchy, the global index, the guard for the last partial block, warps, the grid-stride loop, then 2D and 3D data flattened into memory. It ends with the host code around a launch and the bytes each kernel moves.</p>`,
     facts: ["10 steps", "4 checkpoints", "1 simulator", "15 problems"],
     legend: [["k", "thread / element"], ["v", "highlighted"], ["hot", "idle or wrong"], ["ok", "valid"]],
@@ -301,7 +302,7 @@ D = 4, H = 5, W = 6:
         } },
 
       { rail: "host side", title: "Around the kernel: memory, launches, errors, bytes",
-        body: `<p>On LeetGPU, <code>solve()</code> receives pointers that already live in GPU memory. In the local harness, and in real code, the CPU (the <b>host</b>) does the setup:</p>
+        body: `<p>On LeetGPU, <code>solve()</code> receives pointers that already live in GPU memory. In the local harness, and in real code, the CPU (the <b>host</b>) does the setup. P1.6 teaches this program step by step; here is the recap:</p>
 <div class="eq">cudaMalloc(&amp;dA, bytes);                 // GPU memory
 cudaMemcpy(dA, hA, bytes, cudaMemcpyHostToDevice);
 add&lt;&lt;&lt;blocks, 256&gt;&gt;&gt;(dA, dB, dC, N);  // async

@@ -12,11 +12,11 @@ static float ref(float x) { return 1.0f / (1.0f + std::exp(-x)); }
 S2S_TEST(sizes) {
   for (int n : {1, 31, 256, 1000, 1 << 20, 5000003}) {
     auto in = s2s::random_vec<float>(size_t(n), -8, 8, unsigned(n));
-    s2s::DeviceBuffer<float> din(in), dout(size_t(n));
+    s2s::DeviceBuffer<float> din(in), dout(static_cast<size_t>(n));
     solve(din.get(), dout.get(), n);
     CUDA_CHECK_LAUNCH();
     auto out = dout.download();
-    std::vector<float> want(size_t(n));
+    std::vector<float> want(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) want[size_t(i)] = ref(in[size_t(i)]);
     CHECK_ALLCLOSE(out.data(), want.data(), want.size(), 1e-6, 1e-6);
   }
@@ -25,7 +25,7 @@ S2S_TEST(sizes) {
 S2S_TEST(bench) {
   if (!g_bench) return;
   const int n = 1 << 26;
-  s2s::DeviceBuffer<float> a(size_t(n)), b(size_t(n));
+  s2s::DeviceBuffer<float> a(static_cast<size_t>(n)), b(static_cast<size_t>(n));
   a.zero();
   s2s::table_header("GB/s");
   auto t = s2s::time_gpu([&] { solve(a.get(), b.get(), n); });

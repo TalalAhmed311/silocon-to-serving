@@ -1,12 +1,13 @@
 # Lane B — CUDA C++ on LeetGPU
 
-Lane B runs in parallel with Lane A for all 44 weeks. It does 3–4 problems a week during P0–P4 (weeks 1–24) and daily from P5 (week 25) on. Write every kernel in **CUDA C++ first**. Triton versions come in L6 and in project #12.
+Lane B runs in parallel with Lane A for all 44 weeks. Weeks 1–5 are an optional no-GPU warm-up (L0). From week 6, after Lane A's P1.6, it does 3–4 problems a week (weeks 6–24) and daily from P5 (week 25) on. **Do P1.6 before L1.** Write every kernel in **CUDA C++ first**. Triton versions come in L6 and in project #12.
 
 | Level | Weeks | Folder | Exit check |
 |---|---|---|---|
-| L1 | 1–6 | [L1-launch-and-indexing](L1-launch-and-indexing/syllabus.md) | write 2D indexing for any shape unaided |
-| L2 | 7–14 | [L2-memory-and-shared-memory](L2-memory-and-shared-memory/syllabus.md) | transpose ≥80% of copy bandwidth |
-| L3 | 15–24 | [L3-reductions-and-scans](L3-reductions-and-scans/syllabus.md) | reduction within 10% of `cub::DeviceReduce` |
+| L0 (optional) | 1–5 | [srush/GPU-Puzzles](https://github.com/srush/GPU-Puzzles) in a notebook (linked only, no GPU needed) | you can say which thread owns which element in each puzzle |
+| L1 | 6–10 | [L1-launch-and-indexing](L1-launch-and-indexing/syllabus.md) | write 2D indexing for any shape unaided |
+| L2 | 11–16 | [L2-memory-and-shared-memory](L2-memory-and-shared-memory/syllabus.md) | transpose ≥80% of copy bandwidth |
+| L3 | 17–24 | [L3-reductions-and-scans](L3-reductions-and-scans/syllabus.md) | reduction within 10% of `cub::DeviceReduce` |
 | L4 | 25–27 | [L4-fused-elementwise-and-norms](L4-fused-elementwise-and-norms/syllabus.md) | single-pass online softmax, reported in GB/s |
 | L5 | 28–31 | [L5-gemm-and-tensor-cores](L5-gemm-and-tensor-cores/syllabus.md) | SGEMM ≥70% cuBLAS; tensor-core HGEMM ≥50% |
 | L6 | 32–44 | [L6-attention-and-triton](L6-attention-and-triton/syllabus.md) | FA-2 forward ≥5× naive at seq 4k |

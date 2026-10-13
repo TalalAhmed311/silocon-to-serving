@@ -1,6 +1,16 @@
-# P5 — CUDA C++ deep dive
+# P5 — CUDA performance deep dive
 
-**Weeks 25–34 · Lane A ≈ 110 h · Tier T2 (one NVIDIA GPU; `g4dn.xlarge` T4 for sm_75 basics, `g6.xlarge` L4 for sm_89 FP8/bf16; Nsight needs counter access, see `aws.md`) · Lane B: L4 (25–27) → L5 (28–31) → L6 (32–) daily**
+**Weeks 25–34 · Lane A ≈ 110 h · Tier T2 (one NVIDIA GPU; `g4dn.xlarge` T4 for sm_75 basics, `g6.xlarge` L4 for sm_89 FP8/bf16; Nsight needs counter access, see `aws.md`) · Lane B: L1–L3 done (weeks 6–24), then L4 (25–27) → L5 (28–31) → L6 (32–) daily**
+
+## Before you start P5
+
+P5 is the **performance** deep dive. It does not teach your first kernel. Check these before week 25:
+
+- [ ] **P1.6 done** ([Your first CUDA program](../P1-inference-fundamentals/P1.6-first-cuda-program/README.md)): you can write the five-step host program, size a grid with ceil-div, check errors with `CUDA_CHECK`, and run `compute-sanitizer`.
+- [ ] **Lane B L1 to L3 exit checks passed** ([L1](../../laneB-cuda/L1-launch-and-indexing/syllabus.md): 2D indexing for any shape unaided · [L2](../../laneB-cuda/L2-memory-and-shared-memory/syllabus.md): transpose at 80% or more of copy bandwidth · [L3](../../laneB-cuda/L3-reductions-and-scans/syllabus.md): a reduction within 10% of `cub::DeviceReduce`).
+- [ ] **Nsight-ready AWS access**: you can start the single-GPU box and read GPU counters with `ncu`, as described in [`aws-common.md`](aws-common.md).
+
+If not, go to P1.6, then Lane B L1 to L3. P5.1 recaps P1.6 and L1 in a few minutes and then goes deeper.
 
 **Minimum toolchain:** CUDA 12.4+, CMake 3.24+. Every example states its minimum compute capability (sm_75 baseline; tensor-core rungs mark sm_80+ for `mma.sync` bf16 and `cp.async`, sm_89+ for FP8).
 
@@ -12,7 +22,7 @@
 
 | Module | Time | Project | Animations |
 |---|---|---|---|
-| P5.1 Execution model, occupancy, divergence | 0.5 h + 9 h | — | **grid → blocks → warps → SM scheduling; warp divergence**; handbook GPUExecutionVisualizer, WarpDivergenceVisualizer, WarpSchedulerVisualizer (linked) |
+| P5.1 Execution model, occupancy, divergence (recaps P1.6 and L1, then deeper) | 0.5 h + 9 h | — | **grid → blocks → warps → SM scheduling; warp divergence**; handbook GPUExecutionVisualizer, WarpDivergenceVisualizer, WarpSchedulerVisualizer (linked) |
 | P5.2 Memory: coalescing, shared memory, bank conflicts | 0.5 h + 10 h | — | **coalescing: contiguous vs strided, sectors fetched**; **shared-memory tiling of matmul; bank conflicts with/without padding**; handbook MemoryCoalescingVisualizer (linked; ours adds a sector count) |
 | P5.3 Profiling with Nsight Compute and Systems | 0.4 h + 8 h | — | — |
 | P5.4 Reductions and scans | 0.5 h + 10 h | D4 (reduction, scan) | **tree reduction vs warp-shuffle reduction** |

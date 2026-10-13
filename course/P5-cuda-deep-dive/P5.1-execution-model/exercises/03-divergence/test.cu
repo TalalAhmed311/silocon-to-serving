@@ -2,7 +2,7 @@
 #include <cstring>
 
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static bool g_bench = false;
@@ -23,7 +23,7 @@ S2S_TEST(correct) {
 S2S_TEST(bench) {     // run with --bench before and after your fix; also compare `ncu --metrics smsp__thread_inst_executed_per_inst_executed.ratio`
   if (!g_bench) return;
   const int n = 1 << 24;
-  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(n), -1, 2)), out(size_t(n));
+  s2s::DeviceBuffer<float> in(s2s::random_vec<float>(size_t(n), -1, 2)), out(static_cast<size_t>(n));
   s2s::table_header("GB/s");
   auto t = s2s::time_gpu([&] { clamp_scale(in.get(), out.get(), n, 3.f); });
   s2s::report("clamp_scale", "yours", n, t, 8.0 * n / (t.median_ms * 1e6), "GB/s", s2s::measure_copy_gbs());

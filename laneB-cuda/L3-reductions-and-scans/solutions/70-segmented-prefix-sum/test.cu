@@ -6,16 +6,16 @@ static void check(int N, int seg_every) {
   auto vi = s2s::random_vec<int>(size_t(N), -4, 4, unsigned(N));
   std::vector<float> v(vi.begin(), vi.end());
   auto r = s2s::random_vec<int>(size_t(N), 0, seg_every - 1, unsigned(N + 1));
-  std::vector<int> f(size_t(N));
+  std::vector<int> f(static_cast<size_t>(N));
   for (int i = 0; i < N; ++i) f[size_t(i)] = (r[size_t(i)] == 0) ? 1 : 0;
-  std::vector<float> want(size_t(N));
+  std::vector<float> want(static_cast<size_t>(N));
   double run = 0;
   for (int i = 0; i < N; ++i) {
     if (i == 0 || f[size_t(i)]) run = 0;
     want[size_t(i)] = float(run);
     run += v[size_t(i)];
   }
-  s2s::DeviceBuffer<float> dv(v), dout(size_t(N));
+  s2s::DeviceBuffer<float> dv(v), dout(static_cast<size_t>(N));
   s2s::DeviceBuffer<int> df(f);
   solve(dv.get(), df.get(), dout.get(), N);
   CUDA_CHECK_LAUNCH();
