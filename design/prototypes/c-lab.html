@@ -1,0 +1,221 @@
+<title>KV Cache Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: app shell. Top bar with tabs; left rail = lesson path; centre = concept card; right = live "machine" panel. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#18202b; --muted:#5d6878; --line:#d6dce4;
+  --accent:#0d7a5f; --accent-ink:#ffffff; --amber:#c4780a; --bad:#c23b3b; --cache:#1f8fb8;
+  --f-ui:"Manrope",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161c; --surface:#1a2029; --ink:#e6ebf2; --muted:#97a2b2; --line:#2b3442;
+  --accent:#3fc59f; --accent-ink:#0b1a14; --amber:#f0a83a; --bad:#ff6f6f; --cache:#5cc2e6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161c; --surface:#1a2029; --ink:#e6ebf2; --muted:#97a2b2; --line:#2b3442;
+  --accent:#3fc59f; --accent-ink:#0b1a14; --amber:#f0a83a; --bad:#ff6f6f; --cache:#5cc2e6; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-ui);padding-inline:16px;padding-block:0 32px}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-block:14px;border-bottom:1px solid var(--line);max-width:1280px;margin:0 auto}
+.bar .t{font-weight:800;font-size:17px}
+.bar .t small{display:block;font:500 12px var(--f-mono);color:var(--muted)}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;margin-left:auto}
+.tabs button{border:0;background:none;color:var(--muted);font:700 14px var(--f-ui);padding:8px 14px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.prog{font:600 12px var(--f-mono);color:var(--muted)}
+.shell{max-width:1280px;margin:18px auto 0;display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:18px;align-items:start}
+.rail{display:flex;flex-direction:column;gap:4px;position:sticky;top:84px}
+.rail button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid transparent;background:none;color:var(--ink);font:600 14px var(--f-ui);padding:9px 10px;border-radius:8px;cursor:pointer}
+.rail button .dot{width:22px;height:22px;flex:none;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font:600 11px var(--f-mono);color:var(--muted)}
+.rail button.done .dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rail button[aria-current="true"]{background:var(--surface);border-color:var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 24px;min-width:0}
+.card h2{font-size:24px;line-height:1.2;margin:4px 0 10px;font-weight:800;text-wrap:balance}
+.card .eyebrow{font:600 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.card p{max-width:66ch;margin:0 0 12px}
+.eq{font:13.5px/1.6 var(--f-mono);background:var(--bg);border-radius:8px;padding:12px 14px;white-space:pre;overflow-x:auto;margin:10px 0}
+.viz{border:1px solid var(--line);border-radius:10px;padding:12px;margin:14px 0;overflow-x:auto}
+.viz svg{width:100%;height:auto;display:block;min-width:520px}
+svg text{font-family:var(--f-mono)}
+.quiz{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+.quiz .q{font-weight:700;margin-bottom:8px}
+.opts{display:grid;gap:8px}
+.opts button{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:500 14px var(--f-ui);padding:10px 12px;border-radius:8px;cursor:pointer}
+.opts button.right{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+.opts button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--surface))}
+.fb{font-size:14px;color:var(--muted);margin-top:8px;min-height:1.4em}
+.nav{display:flex;justify-content:space-between;margin-top:18px;gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 14px var(--f-ui);padding:9px 14px;border-radius:8px;cursor:pointer}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.machine{position:sticky;top:84px;display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.panel h3{font:700 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border:0}
+.row b{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-weight:600}
+.gauge{height:18px;border-radius:5px;background:var(--bg);border:1px solid var(--line);overflow:hidden;display:flex;margin:8px 0 4px}
+.gauge span{display:block;height:100%}
+.chip{display:inline-block;font:600 11px var(--f-mono);padding:3px 8px;border-radius:99px}
+.chip.ok{background:color-mix(in srgb,var(--accent) 18%,var(--surface));color:var(--accent)}
+.chip.no{background:color-mix(in srgb,var(--bad) 16%,var(--surface));color:var(--bad)}
+.ctl{display:grid;gap:10px;font-size:13px}
+.ctl label{display:grid;gap:4px;color:var(--muted)}
+.ctl select,.ctl input{font:13px var(--f-mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px}
+input[type=range]{accent-color:var(--accent);padding:0}
+.ex{display:grid;gap:10px}
+.ex .item{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg)}
+.ex .item b{font-weight:700}
+.ex .item small{grid-column:1/-1;color:var(--muted)}
+.ex code{font:12.5px var(--f-mono);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;overflow-x:auto;white-space:nowrap;max-width:100%;display:block}
+[role=tabpanel][hidden]{display:none}
+@media (max-width:1080px){.shell{grid-template-columns:minmax(0,1fr)}.rail{position:static;flex-direction:row;overflow-x:auto}.rail button{flex:none}.machine{position:static}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="bar">
+  <div class="t">P1.2 · Prefill, decode and the KV cache<small>Prototype C: interactive lab · first principles · T0</small></div>
+  <span class="prog" id="prog">0 / 6 concepts</span>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-learn" aria-selected="true" aria-controls="learn">Learn</button>
+    <button role="tab" id="tab-sim" aria-selected="false" aria-controls="sim">Simulate</button>
+    <button role="tab" id="tab-prac" aria-selected="false" aria-controls="prac">Practice</button>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Lesson path"></nav>
+
+  <main style="min-width:0">
+    <section role="tabpanel" id="learn"><div class="card" id="concept"></div></section>
+    <section role="tabpanel" id="sim" hidden><div class="card">
+      <div class="eyebrow">Simulator</div><h2>Generate text and watch the bill</h2>
+      <p>Pick a model and a workload, then press Run. The chart shows K,V vectors computed per decode step (one layer), with and without a cache. The machine panel on the right shows memory.</p>
+      <div class="ctl" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <label>model<select id="sm"><option value="llama8">Llama-3-8B</option><option value="llama70">Llama-3-70B</option><option value="mistral">Mistral-7B</option></select></label>
+        <label>dtype<select id="sd"><option value="2">bf16</option><option value="1">fp8</option></select></label>
+        <label>prompt tokens <input id="sp" type="range" min="64" max="8192" step="64" value="2048"></label>
+        <label>output tokens <input id="so" type="range" min="16" max="1024" step="16" value="256"></label>
+        <label>concurrent users <input id="su" type="range" min="1" max="64" value="8"></label>
+      </div>
+      <div style="display:flex;gap:8px;margin:14px 0 4px"><button class="btn pri" id="run">Run</button><button class="btn" id="stop">Stop</button></div>
+      <div class="viz"><svg id="simsvg" viewBox="0 0 640 240" role="img" aria-label="Work per step chart"></svg></div>
+    </div></section>
+    <section role="tabpanel" id="prac" hidden><div class="card">
+      <div class="eyebrow">Practice</div><h2>Exercises</h2>
+      <p>Run these from the repo root. Each has a starter file and a test; <code>S2S_SOLUTIONS=1</code> runs the reference.</p>
+      <div class="ex" id="exlist"></div>
+    </div></section>
+  </main>
+
+  <aside class="machine">
+    <div class="panel"><h3>Machine · 24 GB GPU</h3>
+      <div class="gauge" id="gauge"></div>
+      <div style="font:12px var(--f-mono);color:var(--muted)" id="gaugeTxt"></div>
+      <div style="margin-top:8px" id="fit"></div>
+    </div>
+    <div class="panel"><h3>KV cache math</h3>
+      <div class="row"><span>per token</span><b id="mTok"></b></div>
+      <div class="row"><span>per user</span><b id="mSeq"></b></div>
+      <div class="row"><span>all users</span><b id="mAll"></b></div>
+      <div class="row"><span>max users that fit</span><b id="mMax"></b></div>
+    </div>
+    <div class="panel"><h3>Last run</h3>
+      <div class="row"><span>K,V computed, no cache</span><b id="rNo">–</b></div>
+      <div class="row"><span>K,V computed, cache</span><b id="rYes">–</b></div>
+      <div class="row"><span>work saved</span><b id="rSave">–</b></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), NS="http://www.w3.org/2000/svg";
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el=(t,a,p,tx)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);if(tx!==undefined)n.textContent=tx;p&&p.appendChild(n);return n};
+const MODELS={llama8:{name:"Llama-3-8B",L:32,kv:8,hd:128,P:8.0},llama70:{name:"Llama-3-70B",L:80,kv:8,hd:128,P:70.6},mistral:{name:"Mistral-7B",L:32,kv:8,hd:128,P:7.2}};
+const fmt=b=>b>=2**30?(b/2**30).toFixed(2)+" GiB":b>=2**20?(b/2**20).toFixed(1)+" MiB":(b/1024).toFixed(0)+" KiB";
+
+/* ---- concepts ---- */
+const C=[
+ {t:"The loop",h:"Text generation is a loop",body:`<p>A language model is a function: give it a list of tokens and it returns a probability for every possible next token. To write text, pick one, append it, and call the model again on the longer list.</p><div class="eq">tokens = prompt
+while not done:
+    probs = model(tokens)        # sees ALL tokens so far
+    tokens.append(pick(probs))</div>`,viz:"loop",q:"Generating 4 tokens after a 3-token prompt, how many times is the model called?",o:["1","4","7"],a:1,e:"One call per generated token. Each call sees the whole list so far."},
+ {t:"Q, K, V",h:"What attention needs from the past",body:`<p>In each attention layer, every token vector <code>x</code> is multiplied by three learned matrices:</p><div class="eq">q = x·W_Q   what am I looking for
+k = x·W_K   what do I contain
+v = x·W_V   what do I hand over</div><p>The newest token scores its <b>q</b> against each earlier <b>k</b>, softmaxes the scores, and takes the weighted sum of the <b>v</b>s.</p>`,viz:"attn",q:"Can token 3's key change after token 7 is generated?",o:["Yes, attention updates it","No, tokens only look backwards"],a:1,e:"The causal mask means token 3 never sees later tokens, so its k and v are fixed forever."},
+ {t:"Wasted work",h:"Without memory, the loop repeats itself",body:`<p>A naive loop rebuilds every key and value in every call. Call <i>t</i> computes <i>t</i> K,V pairs per layer, so generating <i>n</i> tokens costs about <b>n²/2</b>, while only <b>n</b> of them are new.</p>`,viz:"waste",q:"Roughly how many K,V computations per layer to generate 1,000 tokens with no cache?",o:["1,000","~500,000","1,000,000,000"],a:1,e:"1 + 2 + … + 1000 ≈ 500,500."},
+ {t:"KV cache",h:"Keep the keys and values",body:`<p>Since past keys and values never change, store them. Each call computes q, k, v for the <b>new token only</b>, appends k and v to the cache, and attends over everything stored.</p><div class="eq">K_cache.append(x_new @ W_K)
+V_cache.append(x_new @ W_V)
+out = softmax(q @ K_cache.T / √d) @ V_cache</div><p>Queries aren't cached: each one is used once, by its own token.</p>`,viz:"cache",q:"With a cache, how many new K,V pairs does each decode step compute (per layer)?",o:["One","As many as tokens so far","Zero"],a:0,e:"One pair for the new token; the rest are read from the cache."},
+ {t:"Prefill vs decode",h:"Two phases, two bottlenecks",body:`<p><b>Prefill</b> runs the whole prompt in one pass. Each weight read is reused by every prompt token, so the GPU is busy computing: <i>compute-bound</i>. It ends at the first token (TTFT).</p><p><b>Decode</b> makes one token per pass, but must still read all the weights. About 2 FLOPs per weight byte: the GPU waits on memory: <i>memory-bound</i>. The gap between tokens is the ITL.</p>`,viz:"phases",q:"Why does batching many users together speed up decode throughput?",o:["Each weight read serves more tokens","It makes the cache smaller","It skips prefill"],a:0,e:"Batching raises the work done per byte of weights read."},
+ {t:"Memory bill",h:"How big is the cache?",body:`<p>One key and one value per token, per layer, per KV head:</p><div class="eq">bytes/token = 2 × layers × kv_heads × head_dim × bytes</div><p>Llama-3-8B in bf16: 2 × 32 × 8 × 128 × 2 = <b>131,072 B = 128 KiB</b>. An 8k-token conversation needs 1 GiB. The machine panel on the right updates live as you change the simulator settings.</p>`,viz:"mem",q:"Llama-3-8B uses 8 KV heads for 32 query heads. Compared with 32 KV heads, the cache is…",o:["the same size","4× smaller","32× smaller"],a:1,e:"This is grouped-query attention: fewer KV heads, proportionally smaller cache."}
+];
+let idx=0;const done=new Set();
+function rail(){const r=$("#rail");r.innerHTML="";C.forEach((c,i)=>{const b=document.createElement("button");b.innerHTML=`<span class="dot">${done.has(i)?"✓":i+1}</span>${c.t}`;if(done.has(i))b.classList.add("done");if(i===idx)b.setAttribute("aria-current","true");b.onclick=()=>{idx=i;renderConcept();showTab("learn")};r.appendChild(b)});$("#prog").textContent=`${done.size} / ${C.length} concepts`}
+function renderConcept(){const c=C[idx],k=$("#concept");
+  k.innerHTML=`<div class="eyebrow">Concept ${idx+1} of ${C.length}</div><h2>${c.h}</h2>${c.body}<div class="viz"><svg id="cviz" viewBox="0 0 640 170" role="img" aria-label="${c.t} visual"></svg></div>
+  <div class="quiz"><div class="q">${c.q}</div><div class="opts">${c.o.map((o,i)=>`<button data-i="${i}">${o}</button>`).join("")}</div><div class="fb" id="fb"></div></div>
+  <div class="nav"><button class="btn" id="prev" ${idx===0?"disabled":""}>Back</button><button class="btn pri" id="next">${idx===C.length-1?"Go to the simulator":"Next concept"}</button></div>`;
+  k.querySelectorAll(".opts button").forEach(b=>b.onclick=()=>{const ok=+b.dataset.i===c.a;b.classList.add(ok?"right":"wrong");$("#fb").textContent=(ok?"Correct. ":"Not quite. ")+c.e;if(ok){done.add(idx);rail()}});
+  $("#prev").onclick=()=>{if(idx>0){idx--;renderConcept()}};
+  $("#next").onclick=()=>{if(idx<C.length-1){idx++;renderConcept()}else showTab("sim")};
+  drawViz(c.viz,$("#cviz"));rail()}
+
+let vizTimer=null;
+function drawViz(kind,s){clearInterval(vizTimer);const W=["The","cache","stores","keys","and","values","for","every"];
+  const box=(i,y,fill,txt,fg)=>{el("rect",{x:14+i*76,y,width:68,height:30,rx:6,fill},s);el("text",{x:48+i*76,y:y+20,"text-anchor":"middle","font-size":12,fill:fg||css("--surface")},s,txt)};
+  const clear=()=>{while(s.firstChild)s.removeChild(s.firstChild)};
+  if(kind==="loop"){let n=3;const f=()=>{clear();for(let i=0;i<n;i++)box(i,40,i<3?css("--ink"):css("--accent"),W[i]);el("text",{x:14,y:110,"font-size":13,fill:css("--muted")},s,`call ${n-2}: model(${n} tokens) → "${W[n]||"."}"`);n=n>=7?3:n+1};f();vizTimer=setInterval(f,1100)}
+  if(kind==="attn"){const w=[.1,.3,.15,.33,.12];for(let i=0;i<5;i++){box(i,20,css("--cache"),"k"+(i+1));el("line",{x1:48+4*76,y1:150,x2:48+i*76,y2:52,stroke:css("--amber"),"stroke-width":2+w[i]*24,"stroke-opacity":.7},s);el("text",{x:48+i*76,y:80,"text-anchor":"middle","font-size":12,fill:css("--ink")},s,w[i].toFixed(2))}
+    el("rect",{x:48+4*76-20,y:150,width:40,height:28,rx:6,fill:css("--amber")},s);el("text",{x:48+4*76,y:169,"text-anchor":"middle","font-size":12,fill:css("--surface")},s,"q₅");
+    el("text",{x:14,y:196,"font-size":12,fill:css("--muted")},s,"line width = attention weight; weights sum to 1")}
+  if(kind==="waste"||kind==="cache"){const cache=kind==="cache";let r=1;const f=()=>{clear();for(let rr=0;rr<r;rr++)for(let c=0;c<=rr+2;c++){const nw=c===rr+2;el("rect",{x:14+c*40,y:10+rr*22,width:36,height:18,rx:3,fill:nw?css("--accent"):(cache?css("--cache"):css("--bad")),opacity:nw?1:.75},s)}
+      const n=r,total=cache?n+2:Array.from({length:n},(_,i)=>i+3).reduce((a,b)=>a+b,0);el("text",{x:420,y:40,"font-size":13,fill:css("--ink")},s,`calls: ${n}`);el("text",{x:420,y:62,"font-size":13,fill:cache?css("--cache"):css("--bad")},s,`K,V computed: ${total}`);r=r>=8?1:r+1};f();vizTimer=setInterval(f,700)}
+  if(kind==="phases"){el("rect",{x:14,y:50,width:220,height:40,rx:6,fill:css("--accent")},s);el("text",{x:24,y:75,"font-size":12,fill:css("--accent-ink")},s,"prefill: 2,048 tokens, 1 pass");
+    for(let i=0;i<20;i++)el("rect",{x:240+i*19,y:50,width:15,height:40,rx:2,fill:css("--cache")},s);
+    el("line",{x1:236,x2:236,y1:36,y2:104,stroke:css("--ink"),"stroke-dasharray":"3 3"},s);el("text",{x:240,y:30,"font-size":12,fill:css("--ink")},s,"TTFT");
+    el("text",{x:14,y:130,"font-size":12,fill:css("--muted")},s,"schematic · each teal bar = one decode pass = 1 token per user");
+    el("text",{x:14,y:152,"font-size":12,fill:css("--muted")},s,"prefill: matrix × matrix (compute-bound) · decode: matrix × vector (memory-bound)")}
+  if(kind==="mem"){const b=[["2","K and V"],["32","layers"],["8","kv_heads"],["128","head_dim"],["2","bytes"]];b.forEach(([v,l],i)=>{el("rect",{x:14+i*110,y:40,width:96,height:56,rx:8,fill:"none",stroke:css("--line")},s);el("text",{x:62+i*110,y:66,"text-anchor":"middle","font-size":20,fill:css("--ink")},s,v);el("text",{x:62+i*110,y:86,"text-anchor":"middle","font-size":11,fill:css("--muted")},s,l);if(i<4)el("text",{x:114+i*110,y:72,"text-anchor":"middle","font-size":16,fill:css("--muted")},s,"×")});
+    el("text",{x:14,y:140,"font-size":15,fill:css("--accent")},s,"= 131,072 bytes = 128 KiB per token")}
+}
+
+/* ---- machine panel ---- */
+function machine(){const m=MODELS[$("#sm").value],B=+$("#sd").value,ctx=+$("#sp").value+ +$("#so").value,u=+$("#su").value;
+  const tok=2*m.L*m.kv*m.hd*B,seq=tok*ctx,all=seq*u,w=m.P*1e9*B,gpu=24e9,free=gpu-w;
+  $("#mTok").textContent=fmt(tok);$("#mSeq").textContent=fmt(seq);$("#mAll").textContent=fmt(all);
+  $("#mMax").textContent=free>0?Math.floor(free/seq):0;
+  const g=$("#gauge");g.innerHTML="";const tot=Math.max(gpu,w+all);
+  [[w,css("--muted")],[Math.min(all,Math.max(0,gpu-w)),css("--cache")],[Math.max(0,w+all-gpu),css("--bad")]].forEach(([v,c])=>{const sp=document.createElement("span");sp.style.width=(100*v/tot)+"%";sp.style.background=c;g.appendChild(sp)});
+  $("#gaugeTxt").textContent=`${m.name}: weights ${(w/1e9).toFixed(1)} GB · KV ${(all/1e9).toFixed(1)} GB`;
+  $("#fit").innerHTML=w+all<=gpu?`<span class="chip ok">fits</span>`:`<span class="chip no">does not fit</span>`}
+["#sm","#sd","#sp","#so","#su"].forEach(i=>$(i).addEventListener("input",machine));
+
+/* ---- simulator ---- */
+let simT=null;
+function run(){clearInterval(simT);const s=$("#simsvg"),P=+$("#sp").value,O=+$("#so").value,N=40,step=O/N;let i=0;
+  const draw=()=>{while(s.firstChild)s.removeChild(s.firstChild);const maxv=P+O;
+    el("text",{x:10,y:16,"font-size":11,fill:css("--muted")},s,"K,V computed in this decode step (per layer) →  red: no cache   teal: cache");
+    for(let k=0;k<i;k++){const t=P+k*step,hNo=180*t/maxv;el("rect",{x:20+k*15,y:220-hNo,width:6,height:hNo,fill:css("--bad"),opacity:.75},s);el("rect",{x:27+k*15,y:218,width:6,height:2,fill:css("--cache")},s)}
+    el("line",{x1:16,x2:630,y1:221,y2:221,stroke:css("--line")},s);el("text",{x:10,y:236,"font-size":11,fill:css("--muted")},s,"decode step →");i++;
+    if(i>N){clearInterval(simT);const no=O*P+O*(O+1)/2;$("#rNo").textContent=Math.round(no).toLocaleString();$("#rYes").textContent=O.toLocaleString();$("#rSave").textContent=(no/O).toFixed(0)+"×"}};
+  draw();simT=setInterval(draw,60)}
+$("#run").onclick=run;$("#stop").onclick=()=>clearInterval(simT);
+
+/* ---- practice ---- */
+const EX=[["KV size","derive bytes per token for five configs","uv run pytest course/P1-inference-fundamentals/P1.2-prefill-decode-kv-cache/exercises/01-kv-size"],
+["Decode crossover","find where the cache beats recomputation","uv run pytest course/P1-inference-fundamentals/P1.2-prefill-decode-kv-cache/exercises/02-decode-crossover"],
+["Cache correctness","prove cached and uncached logits match","uv run pytest course/P1-inference-fundamentals/P1.2-prefill-decode-kv-cache/exercises/03-cache-correctness"],
+["Sliding window (hard)","a ring-buffer cache with a fixed window","uv run pytest course/P1-inference-fundamentals/P1.2-prefill-decode-kv-cache/exercises/04-sliding-window"]];
+$("#exlist").innerHTML=EX.map(([t,d,c],i)=>`<div class="item"><b>${i+1}. ${t}</b><button class="btn" data-c="${i}">Copy command</button><small>${d}</small><code id="cmd${i}">${c}</code></div>`).join("");
+document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{const t=$("#cmd"+b.dataset.c).textContent;navigator.clipboard.writeText(t).then(()=>{b.textContent="Copied"},()=>{const r=document.createRange();r.selectNodeContents($("#cmd"+b.dataset.c));getSelection().removeAllRanges();getSelection().addRange(r);b.textContent="Selected"})});
+
+/* ---- tabs ---- */
+function showTab(id){["learn","sim","prac"].forEach(t=>{$("#"+t).hidden=t!==id});document.querySelectorAll("[role=tab]").forEach(b=>b.setAttribute("aria-selected",b.getAttribute("aria-controls")===id))}
+document.querySelectorAll("[role=tab]").forEach(b=>b.onclick=()=>showTab(b.getAttribute("aria-controls")));
+
+const all=()=>{renderConcept();machine()};
+all();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",all);
+new MutationObserver(all).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+</script>
