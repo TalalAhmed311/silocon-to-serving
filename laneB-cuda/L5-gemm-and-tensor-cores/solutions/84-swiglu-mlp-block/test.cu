@@ -10,7 +10,7 @@ static void check(int M, int D, int F) {
   auto Wd = s2s::random_vec<float>(size_t(F) * D, -0.2, 0.2, 4);
   std::vector<float> want(size_t(M) * D);
   for (int m = 0; m < M; ++m) {
-    std::vector<double> h(size_t(F));
+    std::vector<double> h(static_cast<size_t>(F));
     for (int f = 0; f < F; ++f) {
       double g = 0, u = 0;
       for (int d = 0; d < D; ++d) { g += double(x[size_t(m) * D + d]) * Wg[size_t(d) * F + f]; u += double(x[size_t(m) * D + d]) * Wu[size_t(d) * F + f]; }

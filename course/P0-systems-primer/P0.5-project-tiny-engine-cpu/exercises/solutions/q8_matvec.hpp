@@ -30,7 +30,7 @@ inline Q8Matrix quantize_matrix(const float* W, int rows, int cols) {
 
 inline void matvec_q8(const Q8Matrix& W, const float* x, float* y) {
   const int nb = W.cols / 32;
-  std::vector<float> xs(size_t(nb));
+  std::vector<float> xs(static_cast<size_t>(nb));
   std::vector<int8_t> xq(size_t(W.cols));
   for (int b = 0; b < nb; ++b) quantize_block(x + 32 * b, xs[size_t(b)], xq.data() + 32 * b);  // once per call
   for (int r = 0; r < W.rows; ++r) {

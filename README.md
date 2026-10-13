@@ -2,8 +2,9 @@
 
 A self-paced course, about 44 weeks at ≈15 h/week, for one learner who wants to become an **AI infrastructure and inference engineer**: someone who can deploy and operate LLM serving on cloud GPUs and write CUDA C++ kernels.
 
-The course has two parts:
+The course has three parts:
 
+0. **Readiness (R)**: what the course assumes you already know, with a self-check per skill. Do only the parts you need. **Start here: [course/R-readiness/README.md](course/R-readiness/README.md).**
 1. A short **systems primer (P0)**.
 2. A **top-down path** from serving and deployment down to CUDA kernels and engine internals (P1–P6), then a capstone.
 
@@ -12,7 +13,7 @@ Two lanes run in parallel:
 | Lane | What | Pace |
 |---|---|---|
 | **A** | Phases + portfolio projects | ≈11 h/week |
-| **B** | CUDA C++ kernels on [LeetGPU](https://leetgpu.com/challenges) | 3–4 problems/week in P0–P4, daily from P5 |
+| **B** | CUDA C++ kernels on [LeetGPU](https://leetgpu.com/challenges) | optional no-GPU warm-up in weeks 1–5; 3–4 problems/week from week 6 (after P1.6) to P4; daily from P5 |
 
 > **Build status: Stages 1–4 done; Stage 5 (QA) is a first pass.** Every phase P0–P6, the Capstone and Lane B L1–L6 are written: lessons, examples, exercises with tests, benches, animations, AWS/GCP guides, and the `platform/` projects. **Nothing has been executed yet**: T0 tests and examples are `TODO(run)`, hardware runs are `TODO(run-on: …)`. [GAPS.md](GAPS.md) lists every one, with the commands to close them.
 
@@ -20,15 +21,16 @@ Two lanes run in parallel:
 
 | Phase | Weeks | Topic | Syllabus | Projects |
 |---|---|---|---|---|
+| R | 0 | Readiness: C++ and memory, terminal and git, Python/NumPy, maths and ML, HTTP, a safe cloud account | [start here](course/R-readiness/README.md) · [syllabus](course/R-readiness/syllabus.md) | — |
 | P0 | 1–3 | Systems primer: C/C++, OS, memory, SIMD | [syllabus](course/P0-systems-primer/syllabus.md) | #0 v0, D1, D2 |
-| P1 | 4–6 | How LLM inference works + hardware math | [syllabus](course/P1-inference-fundamentals/syllabus.md) | D3 |
+| P1 | 4–6 | How LLM inference works + hardware math; P1.6 your first CUDA program | [syllabus](course/P1-inference-fundamentals/syllabus.md) | D3 |
 | P2 | 7–12 | Serving with inference engines | [syllabus](course/P2-serving-engines/syllabus.md) | #4, #7, #10, #6 |
-| P3 | 13–20 | Deployment and infra on multiple clouds | [syllabus](course/P3-deployment-and-infra/syllabus.md) | #1, #13, #2, #3, #5, #8 |
+| P3 | 13–20 | Deployment and infra on multiple clouds (P3.0 bridges in containers and Kubernetes) | [syllabus](course/P3-deployment-and-infra/syllabus.md) | #1, #13, #2, #3, #5, #8 |
 | P4 | 21–24 | Multi-GPU, GPU sharing, distributed jobs | [syllabus](course/P4-multi-gpu-and-distributed/syllabus.md) | #9, #11 |
-| P5 | 25–34 | CUDA C++ deep dive | [syllabus](course/P5-cuda-deep-dive/syllabus.md) | D4, #12 |
+| P5 | 25–34 | CUDA performance deep dive (assumes P1.6 and Lane B L1–L3) | [syllabus](course/P5-cuda-deep-dive/syllabus.md) | D4, #12 |
 | P6 | 35–40 | Engine internals | [syllabus](course/P6-engine-internals/syllabus.md) | #0 v1 |
 | Cap | 41–44 | Multi-region failover + public teardown | [syllabus](course/capstone/syllabus.md) | #14, #15 |
-| Lane B | 1–44 | CUDA levels L1–L6 mapped to LeetGPU | [overview](laneB-cuda/README.md) | — |
+| Lane B | 1–44 | L0 warm-up (weeks 1–5), then CUDA levels L1–L6 mapped to LeetGPU | [overview](laneB-cuda/README.md) | — |
 
 ## Hardware tiers
 
@@ -89,7 +91,7 @@ S2S_RUNNER=fake uv run uvicorn s2s_engine.server:app --app-dir platform/engine/v
 python tools/build_site.py serve           # the course as a website (needs site/requirements.txt)
 ```
 
-Start with [P0.1](course/P0-systems-primer/P0.1-c-cpp-for-systems/README.md) and tick weeks off in [PROGRESS.md](PROGRESS.md).
+Start with the [Readiness self-check](course/R-readiness/README.md), then [P0.1](course/P0-systems-primer/P0.1-c-cpp-for-systems/README.md), and tick weeks off in [PROGRESS.md](PROGRESS.md).
 
 ## License
 

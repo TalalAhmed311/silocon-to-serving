@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f). Everything runs against `mockllm` backends. Point it at your P2.1 vLLM server for a real backend |
 | **Time** | ≈25 min reading + ≈10 h hands-on |
-| **Prerequisites** | P1.3 (metrics, SSE), P2.1 |
+| **Prerequisites** | P1.3 (metrics, SSE), P2.1, [R.6](../../R-readiness/R.6-http-and-networking/README.md) (status codes, retries, idempotency) |
 | **You will build** | **#6**: `platform/gateway`, multi-backend routing, retries, fallbacks, rate limits, per-tenant token budgets |
 
 ## Learning objectives

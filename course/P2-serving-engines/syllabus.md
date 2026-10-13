@@ -2,6 +2,17 @@
 
 **Weeks 7–12 · Lane A ≈ 66 h · Tier T2 (one NVIDIA GPU: local, or AWS `g6.xlarge`/`g5.xlarge`) with T0 parts (gateway, analysis) · Lane B: L2 (weeks 7–14)**
 
+## Ready for this phase?
+
+- [ ] You can size a KV cache for a model and explain prefill vs decode ([P1.2](../P1-inference-fundamentals/P1.2-prefill-decode-kv-cache/README.md)).
+- [ ] You can define TTFT, ITL and goodput and measure them from a token stream ([P1.3](../P1-inference-fundamentals/P1.3-latency-and-throughput-metrics/README.md), [R.6](../R-readiness/R.6-http-and-networking/README.md)).
+- [ ] You can predict VRAM use for a (model, GPU) pair with your D3 calculator ([P1.5](../P1-inference-fundamentals/P1.5-project-capacity-calculator/README.md)), and you know what an SM, HBM and the roofline are ([P1.4](../P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/README.md)).
+- [ ] You have run a first CUDA program and checked a GPU with `nvidia-smi` ([P1.6](../P1-inference-fundamentals/P1.6-first-cuda-program/README.md)).
+- [ ] Your cloud account is ready: root MFA, an SSO login that passes `aws sts get-caller-identity`, a budget alarm, and a GPU vCPU quota requested ([R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md)). **Do this before P2.1.**
+- [ ] You can send a `curl` request to a JSON API and read a streamed response ([R.6](../R-readiness/R.6-http-and-networking/README.md)).
+
+**If not, go to:** the missing P1 module, [R.6](../R-readiness/R.6-http-and-networking/README.md) for HTTP and streaming, or [R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md) for the account.
+
 **Thread through the phase:** run vLLM and SGLang, push them to KV-cache saturation, find the latency knee, then change one thing at a time (batching policy, quantization, speculative decoding, CUDA graphs) and measure what it bought. Projects #4, #7, #10 and #6 come out of this phase.
 
 Pinned engines: vLLM `v0.31.0` (`d1f3d8b8`), SGLang `v0.5.21` (`a34cba3c`), GuideLLM `v0.8.0`, LLM Compressor `0.14.0`. See SOURCES.md.

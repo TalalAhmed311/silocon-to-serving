@@ -2,6 +2,16 @@
 
 **Weeks 21–24 · Lane A ≈ 44 h · Tier T3 (multi-GPU: a 4×L4 `g6.12xlarge`-class instance for TP practice (GPU count to verify against the EC2 types page), `p4d.24xlarge` or a Capacity Block for NVLink/EFA/MIG) with T0 simulators · Lane B: L3 (until week 24)**
 
+## Ready for this phase?
+
+- [ ] You can place a kernel on a roofline and say what "memory-bound" means ([P1.4](../P1-inference-fundamentals/P1.4-gpu-architecture-and-roofline/README.md), [P0.4](../P0-systems-primer/P0.4-simd-and-roofline/README.md)).
+- [ ] You can use threads, barriers and atomics at a basic level ([P0.3](../P0-systems-primer/P0.3-threads-atomics-caches/README.md)).
+- [ ] You have launched and torn down an AWS stack with `make up` and `make down`, with a budget alarm and idle auto-stop ([P3.2](../P3-deployment-and-infra/P3.2-terraform-on-aws/README.md), [R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md)).
+- [ ] You have requested the multi-GPU vCPU quota you need, or a Capacity Block, before the lab day ([R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md)).
+- [ ] You can run a vLLM server and know what `--tensor-parallel-size` does ([P2.1](../P2-serving-engines/P2.1-first-serve-with-vllm/README.md)).
+
+**If not, go to:** the module named in the item you missed. P-instances are expensive, so do not start a T3 lab without the first four.
+
 **Thread through the phase:** communication is just another roofline. You predict collective time from message size and link bandwidth, measure it with `nccl-tests`, then choose TP/PP/DP/EP for serving and training with those numbers. Projects #9 and #11.
 
 Pinned: NCCL `v2.32.3-1`, nccl-tests `v2.21.1`, torchtitan `v0.3.0`, awsome-distributed-training `d4325212` (SHA; latest tag is pre-reorg), Ray `2.59.0`.

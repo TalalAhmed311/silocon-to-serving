@@ -1,6 +1,6 @@
 # L3 — Tree reduction, warp shuffles, scan, cooperative groups
 
-**Weeks 15–24 (alongside P3–P4) · 3–4 problems/week · Tier T1 + T2 (the CUB baseline needs a local GPU)**
+**Weeks 17–24 (alongside P3–P4) · 3–4 problems/week · Tier T1 + T2 (the CUB baseline needs a local GPU)**
 
 **Objectives.**
 1. Climb Harris's reduction ladder.

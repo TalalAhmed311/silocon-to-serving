@@ -1,0 +1,23 @@
+# Exercise 2 starter. Write a Deployment and a Service for a tiny HTTP echo app.
+# Read the README first. Every TODO is checked by test_deployment.py.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+spec:
+  # TODO: 2 replicas
+  # TODO: selector.matchLabels that picks the pods below (use the label app: echo)
+  template:
+    metadata:
+      labels: {}          # TODO: the same label as the selector
+    spec:
+      containers:
+        - name: echo
+          image: ""       # TODO: hashicorp/http-echo:1.0 (a pinned tag, never latest)
+          # TODO: args ["-listen=:5678", "-text=hello from the echo app"]
+          # TODO: containerPort 5678
+          # TODO: readinessProbe: httpGet on path / and the container port
+          # TODO: resources: requests AND limits for cpu and memory
+---
+# TODO: a Service named echo of type ClusterIP.
+# It must select the same pods, expose port 80 and send traffic to the container's port.

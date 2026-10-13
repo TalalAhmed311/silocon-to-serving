@@ -4,10 +4,10 @@
 
 static void check(int N, double alo, double ahi) {
   auto a = s2s::random_vec<float>(size_t(N), alo, ahi, unsigned(N)), b = s2s::random_vec<float>(size_t(N), -1, 1, unsigned(N + 1));
-  std::vector<float> want(size_t(N));
+  std::vector<float> want(static_cast<size_t>(N));
   double x = 0;
   for (int t = 0; t < N; ++t) { x = double(a[size_t(t)]) * x + b[size_t(t)]; want[size_t(t)] = float(x); }
-  s2s::DeviceBuffer<float> da(a), db(b), dx(size_t(N));
+  s2s::DeviceBuffer<float> da(a), db(b), dx(static_cast<size_t>(N));
   solve(da.get(), db.get(), dx.get(), N);
   CUDA_CHECK_LAUNCH();
   auto got = dx.download();
@@ -22,8 +22,8 @@ S2S_TEST(stable) {
 
 S2S_TEST(cumsum_special_case) {   // a = 1 → x is the inclusive prefix sum of b
   const int N = 10000;
-  std::vector<float> a(size_t(N), 1.f), b(size_t(N), 1.f);
-  s2s::DeviceBuffer<float> da(a), db(b), dx(size_t(N));
+  std::vector<float> a(static_cast<size_t>(N), 1.f), b(static_cast<size_t>(N), 1.f);
+  s2s::DeviceBuffer<float> da(a), db(b), dx(static_cast<size_t>(N));
   solve(da.get(), db.get(), dx.get(), N);
   CUDA_CHECK_LAUNCH();
   CHECK_EQ(dx.download()[size_t(N) - 1], float(N));

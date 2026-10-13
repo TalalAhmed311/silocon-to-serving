@@ -2,7 +2,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(exact_total_and_max) {
   TokenStats s;

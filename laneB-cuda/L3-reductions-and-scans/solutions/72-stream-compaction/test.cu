@@ -6,7 +6,7 @@ static void check(int N, float lo) {
   auto in = s2s::random_vec<float>(size_t(N), lo, 1, unsigned(N));
   std::vector<float> want;
   for (float x : in) if (x > 0.f) want.push_back(x);
-  s2s::DeviceBuffer<float> din(in), dout(size_t(N));
+  s2s::DeviceBuffer<float> din(in), dout(static_cast<size_t>(N));
   s2s::DeviceBuffer<int> dc(1);
   solve(din.get(), dout.get(), dc.get(), N);
   CUDA_CHECK_LAUNCH();

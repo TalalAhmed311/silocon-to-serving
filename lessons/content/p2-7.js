@@ -28,7 +28,7 @@
     intro: `<p>An engine like vLLM turns prompts into tokens. A <b>gateway</b> sits in front of one or many engines and handles everything else a real service needs: who is calling, how fast they may call, how many tokens they may spend, which replica should take the request, what to do when a replica fails, and how to count what happened. This lesson builds each of those from the problem it solves, with worked numbers, and ties each to <code>platform/gateway</code> (project #6), where every rule is code you can test in virtual time.</p>`,
     facts: ["10 steps", "5 checkpoints", "1 simulator", "5 exercises"],
     legend: [["k", "request path"], ["ok", "allowed / success"], ["hot", "rejected / failed"], ["v", "retry / probe"], ["w", "state"]],
-    prev: "p2-6", next: "p3-1",
+    prev: "p2-6", next: "p3-0",
     steps: [
       { rail: "request path", title: "What a gateway owns: one request, seven checks",
         body: `<p>Why not let clients talk to the engines directly? Because three things are always true in production:</p>

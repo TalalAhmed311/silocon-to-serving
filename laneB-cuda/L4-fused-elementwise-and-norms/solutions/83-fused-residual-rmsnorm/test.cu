@@ -30,7 +30,7 @@ S2S_TEST(correct) {
 S2S_TEST(bench) {      // fused: 2 reads + 2 writes; unfused (add, then norm) would be 3 + 2 row passes
   if (!g_bench) return;
   const int rows = 16384, cols = 4096;
-  s2s::DeviceBuffer<float> x(size_t(rows) * cols), r(size_t(rows) * cols), w(size_t(cols)), ro(size_t(rows) * cols), y(size_t(rows) * cols);
+  s2s::DeviceBuffer<float> x(size_t(rows) * cols), r(size_t(rows) * cols), w(static_cast<size_t>(cols)), ro(size_t(rows) * cols), y(size_t(rows) * cols);
   x.zero(); r.zero(); w.zero();
   s2s::table_header("GB/s");
   auto t = s2s::time_gpu([&] { solve(x.get(), r.get(), w.get(), ro.get(), y.get(), rows, cols, 1e-6f); });

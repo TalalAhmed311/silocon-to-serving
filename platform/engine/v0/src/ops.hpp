@@ -108,7 +108,7 @@ inline int sample_top_p(const float* logits, int n, float temperature, float top
   std::vector<float> p(logits, logits + n);
   for (auto& v : p) v /= temperature;
   softmax(p.data(), n);
-  std::vector<int> idx(size_t(n));
+  std::vector<int> idx(static_cast<size_t>(n));
   std::iota(idx.begin(), idx.end(), 0);
   // Tie-break on index so the result does not depend on the sort implementation.
   std::sort(idx.begin(), idx.end(), [&](int a, int b) { return p[size_t(a)] > p[size_t(b)] || (p[size_t(a)] == p[size_t(b)] && a < b); });

@@ -25,7 +25,7 @@ static int ref_sample(const std::vector<double>& w, double u) {
 S2S_TEST(accept_reject_resample) {
   const int B = 6, k = 4, V = 1000;
   std::vector<int> draft(size_t(B) * k);
-  std::vector<float> qp, pp, ua(size_t(B) * k), us(size_t(B));
+  std::vector<float> qp, pp, ua(size_t(B) * k), us(static_cast<size_t>(B));
   auto u_all = s2s::random_vec<float>(size_t(B) * (k + 1), 0.0, 0.999, 77);
   for (int b = 0; b < B; ++b) {
     for (int i = 0; i < k; ++i) {
@@ -42,7 +42,7 @@ S2S_TEST(accept_reject_resample) {
     us[size_t(b)] = u_all[size_t(b) * (k + 1) + k];
   }
   // CPU reference of the same rule
-  std::vector<int> want_tok(size_t(B) * (k + 1), -1), want_n(size_t(B));
+  std::vector<int> want_tok(size_t(B) * (k + 1), -1), want_n(static_cast<size_t>(B));
   for (int b = 0; b < B; ++b) {
     int n = 0;
     for (; n < k; ++n) {
@@ -51,7 +51,7 @@ S2S_TEST(accept_reject_resample) {
       if (!(ua[size_t(b) * k + n] < std::min(1.0, q > 0 ? p / q : 1.0))) break;
       want_tok[size_t(b) * (k + 1) + n] = x;
     }
-    std::vector<double> w(size_t(V));
+    std::vector<double> w(static_cast<size_t>(V));
     for (int j = 0; j < V; ++j) {
       const double p = pp[(size_t(b) * (k + 1) + n) * V + j];
       w[size_t(j)] = n < k ? std::max(0.0, p - double(qp[(size_t(b) * k + n) * V + j])) : p;
@@ -59,7 +59,7 @@ S2S_TEST(accept_reject_resample) {
     want_tok[size_t(b) * (k + 1) + n] = ref_sample(w, us[size_t(b)]);
     want_n[size_t(b)] = n + 1;
   }
-  s2s::DeviceBuffer<int> dd(draft), tok(size_t(B) * (k + 1)), nout(size_t(B));
+  s2s::DeviceBuffer<int> dd(draft), tok(size_t(B) * (k + 1)), nout(static_cast<size_t>(B));
   s2s::DeviceBuffer<float> dq(qp), dp(pp), dua(ua), dus(us);
   std::vector<int> neg(size_t(B) * (k + 1), -1);
   tok.upload(neg);

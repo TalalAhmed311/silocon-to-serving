@@ -1,7 +1,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 static void check_n(size_t n, size_t off) {
   std::vector<float> x(n + 8), y(n + 8), want(n + 8);

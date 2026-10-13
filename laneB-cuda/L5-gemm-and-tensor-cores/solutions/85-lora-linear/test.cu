@@ -7,7 +7,7 @@ static void check(int M, int N, int K, int r, float alpha) {
   auto A = s2s::random_vec<float>(size_t(K) * r, -1, 1, 3), B = s2s::random_vec<float>(size_t(r) * N, -1, 1, 4);
   std::vector<float> want(size_t(M) * N);
   for (int m = 0; m < M; ++m) {
-    std::vector<double> t(size_t(r), 0.0);
+    std::vector<double> t(static_cast<size_t>(r), 0.0);
     for (int q = 0; q < r; ++q) for (int k = 0; k < K; ++k) t[size_t(q)] += double(x[size_t(m) * K + k]) * A[size_t(k) * r + q];
     for (int n = 0; n < N; ++n) {
       double s = 0, lo = 0;

@@ -1,5 +1,5 @@
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 S2S_TEST(push_through_growth) {
   TokenRing r(2);

@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "sgemm.hpp"
+#include <sgemm.hpp>
 
 using Fn = void (*)(int, int, int, const float*, const float*, float*);
 

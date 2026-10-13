@@ -1,6 +1,6 @@
 #include <cublas_v2.h>
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static void check(int M, int N, int K) {

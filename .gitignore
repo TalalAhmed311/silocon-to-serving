@@ -7,3 +7,9 @@ __pycache__/
 build/
 results/
 *.bin
+
+# Terraform: secrets and state never go in the repo (see R.7)
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/

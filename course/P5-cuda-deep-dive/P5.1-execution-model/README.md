@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T2](https://img.shields.io/badge/tier-T2%20one%20GPU-orange) (any sm_75+ GPU; `g4dn.xlarge` in [aws.md](aws.md)) |
 | **Time** | ≈30 min reading + ≈9 h hands-on |
-| **Prerequisites** | P0.1 (C++), P0.2 (pinned memory), P0.3 (threads), P1.4 (GPU hierarchy) |
+| **Prerequisites** | [P1.6](../../P1-inference-fundamentals/P1.6-first-cuda-program/README.md) (your first CUDA program), [Lane B L1 to L3](../../../laneB-cuda/README.md) (exit checks passed), P0.1 (C++), P0.2 (pinned memory), P0.3 (threads), P1.4 (GPU hierarchy) |
 | **Reading** | PMPP 4th ed. ch. 2–4 · CUDA C++ Programming Guide: *Programming Model*, *Hardware Implementation* |
 
 ## Learning objectives
@@ -18,6 +18,8 @@
 ---
 
 ## 1. The hierarchy
+
+This section **recaps P1.6 and Lane B L1 briefly** (kernels, indices, grid-stride loops) and then goes deeper: how blocks are scheduled onto SMs, occupancy, divergence, async launches and streams. If the recap is new to you, do P1.6 and L1 first.
 
 ```
 grid  ── blocks (any order, any SM; independent) ── threads (blockDim.x × y × z ≤ 1024)

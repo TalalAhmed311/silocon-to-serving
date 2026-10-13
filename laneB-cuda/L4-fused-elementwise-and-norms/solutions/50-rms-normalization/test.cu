@@ -28,7 +28,7 @@ S2S_TEST(shapes) { check(1, 3); check(5, 1000); check(64, 4096); check(8, 8191);
 S2S_TEST(bench) {
   if (!g_bench) return;
   const int rows = 16384, cols = 4096;
-  s2s::DeviceBuffer<float> x(size_t(rows) * cols), w(size_t(cols)), y(size_t(rows) * cols);
+  s2s::DeviceBuffer<float> x(size_t(rows) * cols), w(static_cast<size_t>(cols)), y(size_t(rows) * cols);
   x.zero(); w.zero();
   s2s::table_header("GB/s");
   auto t = s2s::time_gpu([&] { solve(x.get(), w.get(), y.get(), rows, cols, 1e-5f); });

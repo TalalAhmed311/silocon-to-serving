@@ -77,7 +77,7 @@ inline GpuTiming time_gpu(const std::function<void()>& launch, int warmup = 5, i
   cudaEvent_t a, b;
   CUDA_CHECK(cudaEventCreate(&a));
   CUDA_CHECK(cudaEventCreate(&b));
-  std::vector<float> ms(size_t(reps));
+  std::vector<float> ms(static_cast<size_t>(reps));
   for (int i = 0; i < reps; ++i) {
     CUDA_CHECK(cudaEventRecord(a));
     launch();

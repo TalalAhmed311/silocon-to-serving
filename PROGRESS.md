@@ -1,25 +1,26 @@
 # PROGRESS
 
-Tick each box as you finish it. Lane A ≈ 11 h/week. Lane B does 3–4 problems/week in weeks 1–24, then daily from week 25. Phase boundaries follow the curriculum, and the split into weeks inside a phase is a suggestion.
+Tick each box as you finish it. Lane A ≈ 11 h/week. Week 0 is Readiness: do the self-check in [course/R-readiness/README.md](course/R-readiness/README.md) and only the R lessons you need (R.7 is required before P2.1). Lane B is an optional no-GPU warm-up in weeks 1–5, then 3–4 problems/week from week 6 (after P1.6) to week 24, then daily from week 25. Phase boundaries follow the curriculum, and the split into weeks inside a phase is a suggestion.
 
 | Week | Lane A | Lane B | Done |
 |---|---|---|---|
-| 1 | P0.1 C/C++ for systems | L1 · 3–4 problems | ☐ |
-| 2 | P0.2 Virtual memory · P0.3 Threads/atomics (D2) | L1 · 3–4 problems | ☐ |
-| 3 | P0.4 SIMD + roofline (D1) · P0.5 #0 v0 | L1 · 3–4 problems | ☐ |
-| 4 | P1.1 Transformer forward pass · P1.2 Prefill/decode | L1 · 3–4 problems | ☐ |
-| 5 | P1.3 Metrics · P1.4 GPU roofline | L1 · 3–4 problems | ☐ |
-| 6 | P1.5 D3 capacity calculator | L1 · 3–4 problems | ☐ |
-| 7 | P2.1 First serve with vLLM | L2 · 3–4 problems | ☐ |
-| 8 | P2.2 SGLang · P2.4 Benchmarking | L2 · 3–4 problems | ☐ |
-| 9 | P2.3 Batching + #4 load test | L2 · 3–4 problems | ☐ |
-| 10 | P2.5 Quantization + #7 | L2 · 3–4 problems | ☐ |
+| 0 | Readiness self-check · R.1–R.7 as needed (R.7 before P2.1) | — | ☐ |
+| 1 | P0.1 C/C++ for systems | L0 warm-up (optional, no GPU) | ☐ |
+| 2 | P0.2 Virtual memory · P0.3 Threads/atomics (D2) | L0 warm-up (optional, no GPU) | ☐ |
+| 3 | P0.4 SIMD + roofline (D1) · P0.5 #0 v0 | L0 warm-up (optional, no GPU) | ☐ |
+| 4 | P1.1 Transformer forward pass · P1.2 Prefill/decode | L0 warm-up (optional, no GPU) | ☐ |
+| 5 | P1.3 Metrics · P1.4 GPU roofline | L0 warm-up (optional, no GPU) | ☐ |
+| 6 | P1.5 D3 capacity calculator · P1.6 First CUDA program | L1 · 3–4 problems | ☐ |
+| 7 | P2.1 First serve with vLLM | L1 · 3–4 problems | ☐ |
+| 8 | P2.2 SGLang · P2.4 Benchmarking | L1 · 3–4 problems | ☐ |
+| 9 | P2.3 Batching + #4 load test | L1 · 3–4 problems | ☐ |
+| 10 | P2.5 Quantization + #7 | L1 · 3–4 problems | ☐ |
 | 11 | P2.6 Spec decoding + CUDA graphs + #10 | L2 · 3–4 problems | ☐ |
 | 12 | P2.7 Gateway #6 | L2 · 3–4 problems | ☐ |
-| 13 | P3.1 GPU containers | L2 · 3–4 problems | ☐ |
+| 13 | P3.0 Containers and Kubernetes basics · P3.1 GPU containers | L2 · 3–4 problems | ☐ |
 | 14 | P3.2 Terraform on AWS | L2 · 3–4 problems | ☐ |
-| 15 | P3.3 K8s + GPU Operator | L3 · 3–4 problems | ☐ |
-| 16 | P3.4 Serving stacks + #1 | L3 · 3–4 problems | ☐ |
+| 15 | P3.3 K8s + GPU Operator | L2 · 3–4 problems | ☐ |
+| 16 | P3.4 Serving stacks + #1 | L2 · 3–4 problems | ☐ |
 | 17 | P3.5 Observability #13 + #2 | L3 · 3–4 problems | ☐ |
 | 18 | P3.6 Autoscaling #3 | L3 · 3–4 problems | ☐ |
 | 19 | P3.7 Weight delivery #5 · P3.8 Tenancy #8 | L3 · 3–4 problems | ☐ |
@@ -50,6 +51,9 @@ Tick each box as you finish it. Lane A ≈ 11 h/week. Lane B does 3–4 problems
 | 44 | C2 Teardown #15 (2/2) | L6 · daily | ☐ |
 
 ## Exit checks
+
+- ☐ Readiness: every self-check question in `course/R-readiness/README.md` answered correctly
+- ☐ P1.6: vector add runs on a real GPU with error checks and `compute-sanitizer` clean
 
 - ☐ L1: 2D indexing for any shape, unaided
 - ☐ L2: transpose ≥80% of copy bandwidth

@@ -1,5 +1,7 @@
 # P2.1 on AWS
 
+> **First cloud run of the course.** Do [R.7 A safe cloud account](../../R-readiness/R.7-cloud-account-and-cost-safety/README.md) first: root MFA, an SSO user, a budget alarm and a GPU quota. This guide runs a Terraform stack that P3.2 later explains in full; here you only need `make up`, `make ssm` and `make down`.
+
 | | |
 |---|---|
 | Instance | `g6.xlarge` (1× L4 24 GB) via [`infra/aws/single-node`](../../../infra/aws/single-node/README.md). Budget path: `g4dn.xlarge` (T4 16 GB) with a ≤ 3B model |

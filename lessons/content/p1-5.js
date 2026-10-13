@@ -57,7 +57,7 @@
 <p>Model configs (<code>platform/capacity/presets</code>) and GPU specs (<code>gpu_specs.yaml</code>) are both <b>UNVERIFIED</b>, so every number below is a prediction from those inputs, not a measurement.</p>`,
     facts: ["10 steps", "4 checkpoints", "1 simulator", "5 exercises"],
     legend: [["w", "weights"], ["k", "KV cache"], ["muted", "reserved"], ["q", "compute"], ["hot", "doesn't fit"], ["ok", "result"]],
-    prev: "p1-4", next: "p2-1",
+    prev: "p1-4", next: "p1-6",
     steps: [
       { rail: "the question", title: "Three questions before renting a GPU",
         body: `<p>Someone asks: "Can we serve Llama-3-8B on an L4, for how many users, and how fast?" You could rent one and try. Or you could compute it, because every part of the answer is arithmetic you have already done:</p>

@@ -2,7 +2,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 template <class T>
 static void check_shape(int64_t r, int64_t c) {

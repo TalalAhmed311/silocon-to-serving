@@ -4,7 +4,7 @@
 
 #include <s2s/bench.hpp>
 #include <s2s/check.hpp>
-#include "sgemm_threads.hpp"
+#include <sgemm_threads.hpp>
 
 S2S_TEST(matches_single_thread) {
   const int M = 257, N = 300, K = 129;

@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T2](https://img.shields.io/badge/tier-T2%20one%20GPU-orange) one NVIDIA GPU with ≥ 24 GB (AWS `g6.xlarge` by default, see [aws.md](aws.md)). The client and analysis scripts are T0 and can be tested against `platform/mockllm` |
 | **Time** | ≈25 min reading + ≈7 h hands-on (≈3–4 GPU-hours) |
-| **Prerequisites** | P1.2 (prefill/decode), P1.3 (metrics), P1.4 (roofline), P1.5 (your capacity predictions for this exact setup) |
+| **Prerequisites** | P1.2 (prefill/decode), P1.3 (metrics), P1.4 (roofline), P1.5 (your capacity predictions for this exact setup), [R.6](../../R-readiness/R.6-http-and-networking/README.md) (HTTP, streaming), and **[R.7](../../R-readiness/R.7-cloud-account-and-cost-safety/README.md) (a safe AWS account: budget alarm, SSO, GPU quota) before your first launch** |
 | **Pinned** | vLLM `v0.31.0` (`vllm-project/vllm@d1f3d8b8`), installed from `env/requirements-serving.txt` |
 
 ## Learning objectives

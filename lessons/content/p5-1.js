@@ -14,16 +14,17 @@
 
   S2S.lesson({
     id: "p5-1", n: "P5.1", title: "The CUDA execution model",
-    subtitle: "CUDA deep dive · first principles · T2, one NVIDIA GPU (sm_75+)",
+    subtitle: "CUDA performance deep dive · first principles · T2, one NVIDIA GPU (sm_75+)",
     kicker: "Lesson · ≈ 45 min",
     headline: "Ten thousand threads, one instruction at a time",
-    intro: `<p>A GPU runs your function on thousands of threads at once. This lesson builds the machinery from the bottom: how you name each thread, how threads are grouped into blocks and warps, how blocks land on the GPU's processors (SMs), why an SM wants many warps at once (occupancy), what an <code>if</code> costs inside a warp, and how launches, errors and copies run asynchronously. Every kernel in the rest of P5 depends on these rules.</p>`,
+    intro: `<p>A GPU runs your function on thousands of threads at once. This lesson quickly recaps how you name each thread, then builds the machinery underneath: how threads are grouped into warps, how blocks land on the GPU's processors (SMs), why an SM wants many warps at once (occupancy), what an <code>if</code> costs inside a warp, and how launches, errors and copies run asynchronously. Every kernel in the rest of P5 depends on these rules.</p>
+<p><b>Prerequisites.</b> P1.6 (your first CUDA program) and Lane B L1 to L3 come first. The first three steps below only <b>recap</b> P1.6 and L1 (kernels, indices, the grid-stride loop) in a few lines. The lesson spends its time on what comes after: SM scheduling, occupancy, divergence, async launches and streams.</p>`,
     facts: ["11 steps", "4 checkpoints", "1 simulator", "4 exercises"],
     legend: [["k", "thread / active lane"], ["v", "highlighted"], ["line", "idle / masked"], ["ok", "fits"], ["hot", "limit"]],
     prev: "p4-4", next: "p5-2",
     steps: [
       { rail: "a kernel", title: "One function, run by every thread",
-        body: `<p>A CPU core runs one stream of instructions very fast. A GPU has many simpler cores and wins by running the <b>same function on many data items at once</b>. That function is a <b>kernel</b>. You write it for <i>one</i> element, and the GPU starts one copy, a <b>thread</b>, per element.</p>
+        body: `<p><b>Recap of P1.6.</b> A GPU wins by running the <b>same function on many data items at once</b>. That function is a <b>kernel</b> (<code>__global__</code>). You write it for <i>one</i> element, and the launch <code>&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;</code> starts one <b>thread</b> per element.</p>
 <div class="eq">// CPU: one core walks the array
 for (int i = 0; i &lt; n; ++i) c[i] = a[i] + b[i];
 
@@ -32,10 +33,8 @@ __global__ void vadd(const float* a, const float* b,
                      float* c, int n) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i &lt; n) c[i] = a[i] + b[i];
-}
-vadd&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(a, b, c, n);</div>
-<p><code>__global__</code> marks a function the CPU can launch on the GPU. The <code>&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;</code> part says how many threads to start, in two levels: a number of <b>blocks</b>, each with a number of threads. The next step explains why there are two levels and what <code>blockIdx</code>, <code>blockDim</code> and <code>threadIdx</code> are.</p>
-<div class="analogy"><b>Picture it</b>One clerk stamping 10,000 forms in order, versus 10,000 clerks each stamping one form at the same moment. The GPU is the second office; the kernel is the instruction sheet every clerk follows.</div>`,
+}</div>
+<p>If any of this is new, stop and do P1.6 (the first program) and Lane B L1 (indexing drills) first. From the next step on, the lesson uses it as known and spends its time on what the hardware does with those threads.</p>`,
         scene(G) {
           G.text(24, 40, "CPU: one thread, n steps", { size: 14 });
           strip(G, 24, 56, 16, 36, 30, (c) => (c < 5 ? "w" : "line"), { gap: 3 });
@@ -53,16 +52,12 @@ vadd&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(a, b, c, n);</div>
         } },
 
       { rail: "grid & blocks", title: "Threads come in blocks, blocks form a grid",
-        body: `<p>A launch creates a <b>grid</b> of <b>blocks</b>; each block holds the same number of threads (at most 1,024). Inside the kernel, every thread can read three built-in values:</p>
-<ul><li><code>threadIdx.x</code>: my position inside my block (0 … blockDim.x − 1)</li>
-<li><code>blockIdx.x</code>: which block I belong to</li>
-<li><code>blockDim.x</code>: threads per block (the same for all blocks)</li></ul>
-<p>Lay the blocks end to end and each thread gets a unique <b>global index</b>:</p>
+        body: `<p><b>Recap of P1.6 and L1.</b> A launch makes a <b>grid</b> of <b>blocks</b>; each block has the same number of threads (at most 1,024). Each thread reads <code>threadIdx.x</code>, <code>blockIdx.x</code> and <code>blockDim.x</code>, and builds a unique global index:</p>
 <div class="eq">i = blockIdx.x * blockDim.x + threadIdx.x
 
 blockDim = 256, block 2, thread 5:
   i = 2 * 256 + 5 = 517</div>
-<p>Why two levels? Threads <i>in the same block</i> run on the same processor, so they can share a fast scratchpad (<b>shared memory</b>) and wait for each other (<code>__syncthreads()</code>). Threads in <i>different</i> blocks can't do either during a kernel. Blocks are independent, which lets the GPU run them in any order on any processor. (Indices also come in <code>.y</code> and <code>.z</code> for 2-D and 3-D problems.)</p>`,
+<p>The new part is <i>why</i> there are two levels. Threads <i>in the same block</i> run on the same processor, so they can share a fast scratchpad (<b>shared memory</b>) and wait for each other (<code>__syncthreads()</code>). Threads in <i>different</i> blocks can't, during a kernel. That independence lets the GPU run blocks in any order on any processor. (<code>.y</code> and <code>.z</code> give 2D and 3D indices; L1 drills them.)</p>`,
         scene(G) {
           const bd = 8, x0 = 24, cw = 18;
           for (let b = 0; b < 4; b++) {
@@ -85,15 +80,13 @@ blockDim = 256, block 2, thread 5:
         } },
 
       { rail: "grid-stride", title: "A fixed grid for any n: the grid-stride loop",
-        body: `<p>One thread per element means the grid must grow with <code>n</code>. That breaks in two ways: a huge <code>n</code> needs millions of blocks that mostly just wait in a queue, and an <code>int</code> index overflows past 2³¹ ≈ 2.1 billion elements.</p>
-<p>Instead, launch a grid sized to the <b>GPU</b> (for example 8 blocks per processor × 256 threads) and let each thread loop, jumping by the total number of threads:</p>
+        body: `<p><b>Recap of L1.</b> One thread per element makes the grid grow with <code>n</code>: millions of blocks that mostly wait, and an <code>int</code> index that overflows past 2³¹ ≈ 2.1 billion. The fix is a <b>grid-stride loop</b>: size the grid to the <b>GPU</b> (say 8 blocks per processor × 256 threads) and let each thread jump by the total thread count.</p>
 <div class="eq">long long stride = (long long)gridDim.x * blockDim.x;
 for (long long i = blockIdx.x * (long long)blockDim.x
                    + threadIdx.x;
      i &lt; n; i += stride)
   c[i] = a[i] + b[i];</div>
-<p>Worked example: 2 blocks × 8 threads = 16 threads, <code>n = 40</code>. Thread 5 handles elements 5, 21 and 37; threads 8–15 handle only two elements each, because 40 isn't a multiple of 16. Neighbouring threads still touch neighbouring elements on every pass, which matters for memory speed (P5.2).</p>
-<p>This is exactly <code>d4::vadd_grid_stride</code> in <code>platform/kernels/include/d4/elementwise.cuh</code>, launched with <code>sm_count() * 8</code> blocks of 256.</p>`,
+<p>Example: 2 blocks × 8 threads = 16 threads, <code>n = 40</code>. Thread 5 handles elements 5, 21 and 37. Neighbouring threads still touch neighbouring elements on every pass, which matters for memory speed (P5.2). This is <code>d4::vadd_grid_stride</code> in <code>platform/kernels/include/d4/elementwise.cuh</code>, launched with <code>sm_count() * 8</code> blocks of 256 (exercise 1).</p>`,
         scene(G) {
           const cw = 14.8, x0 = 24;
           G.text(24, 40, "16 threads (2 blocks × 8) sweep n = 40 elements", { size: 14 });
@@ -301,7 +294,7 @@ if ((threadIdx.x &gt;&gt; 5) &amp; 1) a(); else b();</div>
         } },
 
       { rail: "async launch", title: "Launches return before the kernel runs",
-        body: `<p>A kernel launch only <b>queues</b> work for the GPU and returns to the CPU immediately. That's good (the CPU can prepare the next launch) but it changes where errors appear:</p>
+        body: `<p>A kernel launch only <b>queues</b> work for the GPU and returns to the CPU immediately (P1.6 introduced this; here are the details that matter for timing and streams). That's good (the CPU can prepare the next launch) but it changes where errors appear:</p>
 <ul><li>A bad <b>launch configuration</b> (say 2,048 threads per block) is known at once: <code>cudaGetLastError()</code> right after the launch reports it.</li>
 <li>A <b>fault inside the kernel</b> (an out-of-bounds write) happens later, on the GPU. It is reported by the <i>next</i> call that waits for the GPU, which may be a <code>cudaMemcpy</code> in a different file.</li></ul>
 <div class="eq">vadd&lt;&lt;&lt;blocks, 256&gt;&gt;&gt;(a, b, c, n);

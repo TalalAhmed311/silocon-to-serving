@@ -1,7 +1,7 @@
 #include <vector>
 
 #include <s2s/check.hpp>
-#include "impl.hpp"
+#include <impl.hpp>
 
 // Reference written the slowest, most obvious way.
 static std::vector<float> ref(const float* s, int64_t r, int64_t c, int64_t s0, int64_t s1) {

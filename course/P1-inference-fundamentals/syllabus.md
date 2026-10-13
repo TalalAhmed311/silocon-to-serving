@@ -1,6 +1,16 @@
 # P1 — How LLM inference works + hardware math
 
-**Weeks 4–6 · Lane A ≈ 33 h · Tier T0 (all calculators and reference code run on a laptop; one optional T2 measurement) · Lane B: L1 continues**
+**Weeks 4–6 · Lane A ≈ 38 h · Tier T0 (all calculators and reference code run on a laptop; P1.4 has one optional T2 measurement; P1.6 needs a GPU, T1 for the kernel or T2 for the full program) · Lane B: optional L0 warm-up (no GPU) in weeks 1–5, then L1 starts in week 6 after P1.6**
+
+## Ready for this phase?
+
+- [ ] You finished P0, or at least P0.1–P0.4: memory layout, bandwidth and the roofline. P1.4 reuses the roofline.
+- [ ] You can read a short NumPy script: shapes, dtype and bytes, broadcasting ([R.4](../R-readiness/R.4-python-and-numpy/README.md) checkpoints).
+- [ ] You can multiply matrices on paper, count 2·m·k·n FLOPs, and say what softmax does ([R.5](../R-readiness/R.5-maths-and-ml-basics/README.md) checkpoints).
+- [ ] You can read a JSON request and a streamed response ([R.6](../R-readiness/R.6-http-and-networking/README.md) checkpoints). Needed for P1.3.
+- [ ] For P1.6 only: [R.1](../R-readiness/R.1-cpp-from-zero/README.md) and [R.2](../R-readiness/R.2-memory-management/README.md) done, P1.4 done, and one of LeetGPU, Colab or the AWS `g4dn.xlarge` ready.
+
+**If not, go to:** the [15-minute self-check](../R-readiness/README.md), then the R module that matches the item you missed.
 
 **Thread through the phase:** by the end you can take any (model, GPU, workload) triple and predict its VRAM use, KV-cache headroom, max batch, TTFT and decode tokens/s from first principles, then explain why a real server misses that prediction. Every number for a GPU comes from a cited NVIDIA whitepaper (see SOURCES.md §4, currently UNVERIFIED), never from memory.
 
@@ -11,6 +21,7 @@
 | P1.3 Latency and throughput metrics | 0.4 h + 5 h | — | handbook LatencyTimelineVisualizer (linked) |
 | P1.4 GPU architecture and roofline | 0.6 h + 6 h | — | **roofline** (GPU presets); handbook SMFloorplan, GPUTable (linked) |
 | P1.5 Project: capacity calculator | 0.3 h + 9 h | **D3** | handbook GPU memory calculator (linked, used as a cross-check) |
+| P1.6 Your first CUDA program | 0.5 h + 5 h | — | lesson scenes only (host/device, the five-step program, the transfer tax) |
 
 ---
 
@@ -117,3 +128,29 @@
 **Lives in.** `platform/capacity/`.
 
 **Sources.** handbook `calculating-gpu-memory-for-llms.md` · Silicon to Scale ch 11 · kipply.
+
+---
+
+## P1.6 — Your first CUDA program
+
+**Prerequisites.** P1.4 (GPU hierarchy), R.1 and R.2 (pointers, heap, ownership). **Tier.** T1 (LeetGPU or Colab) for the kernel; T2 (`g4dn.xlarge`, sm_75) for the full host program.
+
+**Objectives.**
+
+1. Explain the host/device split: two processors, two memories, PCIe between them.
+2. Get a GPU (LeetGPU, Colab or AWS), check it with `nvidia-smi`, and compile with `nvcc -arch=sm_75`.
+3. Write a `__global__` kernel with a global index and a bounds check, and size the grid with ceil-div.
+4. Write the five-step host program: `cudaMalloc`, `cudaMemcpy` in, launch, `cudaMemcpy` out, `cudaFree`.
+5. Handle asynchronous launches and errors with `cudaGetLastError`, `cudaDeviceSynchronize` and `CUDA_CHECK`.
+6. Debug with kernel `printf` and `compute-sanitizer`.
+7. Time with CUDA events and compare the copy cost with the kernel cost and the P1.4 roofline.
+
+**Examples.** `01_device_info.cu` (compute capability, SMs, memory) · `02_transfer_tax.cu` (H2D, kernel and D2H timings with events).
+
+**Exercises.** (1) hello-device: 2 blocks × 4 threads print their global index (smoke test) · (2) the full vector add for any N, tested at N in {1, 1000, 2²⁰, 2²⁰ + 3} · (3) add the error checks that report a planted bad launch and a kernel fault · (4) *(no test)* read a `compute-sanitizer` report for an out-of-bounds write. Every run is `TODO(run-on: T2)`.
+
+**Animation.** None; the lesson's scenes and the "transfer tax" simulator carry it.
+
+**Sources.** NVIDIA blog, *An Even Easier Introduction to CUDA* · CUDA C++ Programming Guide (programming model) · Compute Sanitizer docs · srush/GPU-Puzzles (no-GPU warm-up). All UNVERIFIED from the build environment (see SOURCES.md).
+
+**Go down when…** you want pinned memory, streams and occupancy: P5.1. **Go up to:** Lane B L1 (starts in week 6), P2.1.

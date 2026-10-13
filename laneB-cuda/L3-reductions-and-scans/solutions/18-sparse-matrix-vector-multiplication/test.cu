@@ -24,14 +24,14 @@ static Csr random_csr(int rows, int cols, int max_per_row, unsigned seed) {
 static void check(int rows, int cols, int max_per_row) {
   auto m = random_csr(rows, cols, max_per_row, unsigned(rows + max_per_row));
   auto x = s2s::random_vec<float>(size_t(cols), -1, 1, 99);
-  std::vector<float> want(size_t(rows));
+  std::vector<float> want(static_cast<size_t>(rows));
   for (int r = 0; r < rows; ++r) {
     double acc = 0;
     for (int k = m.rp[size_t(r)]; k < m.rp[size_t(r) + 1]; ++k) acc += double(m.v[size_t(k)]) * x[size_t(m.ci[size_t(k)])];
     want[size_t(r)] = float(acc);
   }
   s2s::DeviceBuffer<int> rp(m.rp), ci(m.ci.empty() ? std::vector<int>{0} : m.ci);
-  s2s::DeviceBuffer<float> v(m.v.empty() ? std::vector<float>{0} : m.v), dx(x), dy(size_t(rows));
+  s2s::DeviceBuffer<float> v(m.v.empty() ? std::vector<float>{0} : m.v), dx(x), dy(static_cast<size_t>(rows));
   solve(rp.get(), ci.get(), v.get(), dx.get(), dy.get(), rows, int(m.ci.size()));
   CUDA_CHECK_LAUNCH();
   auto got = dy.download();

@@ -3,7 +3,7 @@
 #include <cstring>
 
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static bool g_bench = false;

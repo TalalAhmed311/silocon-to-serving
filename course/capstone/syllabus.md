@@ -2,6 +2,17 @@
 
 **Weeks 41–44 · Lane A ≈ 44 h · Tier T3 (two regions or two clouds) · Lane B: L6 daily, hard problems**
 
+## Ready for this phase?
+
+- [ ] Your multi-node cluster (#1) runs and has a latency report ([P3.4](../P3-deployment-and-infra/P3.4-serving-stacks-on-k8s/README.md)).
+- [ ] Your observability spine (#13) and cost dashboard (#2) are live ([P3.5](../P3-deployment-and-infra/P3.5-observability/README.md)).
+- [ ] Your autoscaler (#3) scales on queue depth and you have a cold-start timeline ([P3.6](../P3-deployment-and-infra/P3.6-autoscaling/README.md)).
+- [ ] Your gateway (#6) enforces keys and quotas ([P2.7](../P2-serving-engines/P2.7-gateway-basics/README.md)).
+- [ ] You have a second region or a second cloud you can deploy to ([P3.9](../P3-deployment-and-infra/P3.9-second-cloud/README.md)).
+- [ ] You have a teardown habit: every stack ends with `make down`, and your budget alarm is on ([R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md)). With two regions or clouds there is more to forget.
+
+**If not, go to:** the module named in the item you missed.
+
 The capstone does not teach a new topic. It proves the platform works end to end, survives a regional failure, and can be reproduced by a stranger.
 
 | Module | Time | Project |

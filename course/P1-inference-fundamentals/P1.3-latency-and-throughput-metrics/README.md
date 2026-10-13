@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f). Everything runs against `platform/mockllm`, a fake server with a continuous-batching cost model |
 | **Time** | ≈25 min reading + ≈5 h hands-on |
-| **Prerequisites** | P1.2 |
+| **Prerequisites** | P1.2, [R.6](../../R-readiness/R.6-http-and-networking/README.md) (HTTP requests, server-sent events) |
 | **You will build** | the metric functions that #4 (P2.3), #13 and #2 (P3.5) reuse, and a streaming client that measures TTFT and ITL itself |
 
 ## Learning objectives

@@ -3,7 +3,7 @@
 
 #include <cub/cub.cuh>
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static bool g_bench = false;
@@ -29,7 +29,7 @@ S2S_TEST(bench) {
   if (!g_bench) return;
   for (int lg : {24, 26, 28}) {
     const long long n = 1LL << lg;
-    s2s::DeviceBuffer<float> in(size_t(n)), out(1), partial(size_t(n / 256 + 2));
+    s2s::DeviceBuffer<float> in(static_cast<size_t>(n)), out(1), partial(size_t(n / 256 + 2));
     in.zero();
     s2s::table_header("GB/s");
     s2s::GpuTiming best{};

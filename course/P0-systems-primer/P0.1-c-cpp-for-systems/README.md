@@ -4,7 +4,7 @@
 |---|---|
 | **Tier** | ![T0](https://img.shields.io/badge/tier-T0%20laptop-2ea44f) Linux or macOS, x86 or ARM, no GPU |
 | **Time** | ≈30 min reading + ≈6 h hands-on |
-| **Prerequisites** | You can write a loop and a function in some language; you have `g++`/`clang++` ≥ 11 and CMake ≥ 3.20 |
+| **Prerequisites** | [R.1](../../R-readiness/R.1-cpp-from-zero/README.md) (C++ basics), [R.2](../../R-readiness/R.2-memory-management/README.md) (stack, heap, ownership), [R.3](../../R-readiness/R.3-terminal-git-build/README.md) (terminal, CMake), or pass their self-checks in [Start here](../../R-readiness/README.md). Tools: `g++`/`clang++` ≥ 11 and CMake ≥ 3.20 |
 | **You will build** | 5 examples, 5 tested exercises, a transpose benchmark |
 
 ## Learning objectives

@@ -1,7 +1,7 @@
 #include <cstring>
 
 #include <s2s/check.hpp>
-#include "kernel.cuh"
+#include <kernel.cuh>
 #include "s2s_cuda.cuh"
 
 static bool g_bench = false;
@@ -24,7 +24,7 @@ S2S_TEST(multi_block) { check(2049); check(1 << 20); check(2048 * 2048 + 1); }
 S2S_TEST(bench) {
   if (!g_bench) return;
   const int n = 1 << 26;
-  s2s::DeviceBuffer<float> in(size_t(n)), out(size_t(n));
+  s2s::DeviceBuffer<float> in(static_cast<size_t>(n)), out(static_cast<size_t>(n));
   s2s::table_header("GB/s");
   auto t = s2s::time_gpu([&] { inclusive_scan(in.get(), out.get(), n); });
   s2s::report("scan", "yours", n, t, 8.0 * n / (t.median_ms * 1e6), "GB/s", s2s::measure_copy_gbs());

@@ -31,7 +31,7 @@ S2S_TEST(decoupled_lookback) {
     auto x = ints(n), want = ref(x);
     const int tiles = d4::ceil_div(n, d4::SCAN_TILE_N);
     s2s::DeviceBuffer<float> in(x), out(x.size());
-    s2s::DeviceBuffer<unsigned long long> status(size_t(tiles));
+    s2s::DeviceBuffer<unsigned long long> status(static_cast<size_t>(tiles));
     s2s::DeviceBuffer<unsigned> counter(1);
     for (int rep = 0; rep < 3; ++rep) {     // races show up as flaky mismatches: run it a few times
       d4::scan_lookback(in.get(), out.get(), n, status.get(), counter.get());
