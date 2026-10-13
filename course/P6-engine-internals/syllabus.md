@@ -2,6 +2,17 @@
 
 **Weeks 35–40 · Lane A ≈ 66 h · Tier T0 for scheduler/allocator/radix-tree logic (pure Python, fully tested at T0) + T2 for the GPU engine · Lane B: L6 daily**
 
+## Ready for this phase?
+
+- [ ] Your CPU engine #0 v0 runs and matches the NumPy reference ([P0.5](../P0-systems-primer/P0.5-project-tiny-engine-cpu/README.md)).
+- [ ] You wrote the D2 KV block allocator and its tests pass ([P0.3](../P0-systems-primer/P0.3-threads-atomics-caches/README.md)).
+- [ ] You can explain continuous batching, PagedAttention and prefix caching as a user of vLLM ([P2.3](../P2-serving-engines/P2.3-batching-and-caching/README.md)).
+- [ ] You have your D4 kernels, including a GEMM, softmax and paged decode attention ([P5.1 to P5.8](../P5-cuda-deep-dive/syllabus.md)).
+- [ ] You passed the Lane B exit checks for L4 and L5 ([Lane B](../../laneB-cuda/README.md)).
+- [ ] You can read a `nvidia-smi` and an Nsight Compute report ([P5.3](../P5-cuda-deep-dive/P5.3-profiling-with-nsight/README.md)).
+
+**If not, go to:** the module named in the item you missed.
+
 **Thread through the phase:** read nano-vllm line by line, re-implement each subsystem in your own engine, map every concept to the production code in vLLM `vllm/v1/` and SGLang `python/sglang/srt/`, then ship **#0 v1**. That is the P0 engine ported to CUDA with continuous batching, paged KV (D2 grown up), your D4 kernels, plugged into #6 and benchmarked against vLLM with #4.
 
 Pinned: nano-vllm `bb823b3e`, vLLM `v0.31.0`, SGLang `v0.5.21`.

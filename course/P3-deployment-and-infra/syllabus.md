@@ -1,6 +1,17 @@
 # P3 — Deployment and infra on multiple clouds
 
-**Weeks 13–20 · Lane A ≈ 88 h · Tier T3 (AWS EKS GPU nodes) with T0 parts (kind cluster on a laptop for every manifest, Terraform `plan`/`validate`, unit tests) · Lane B: L2 → L3 (from week 15)**
+**Weeks 13–20 · Lane A ≈ 94 h · Tier T3 (AWS EKS GPU nodes) with T0 parts (kind cluster on a laptop for every manifest, Terraform `plan`/`validate`, unit tests) · Lane B: L2 → L3 (from week 15)**
+
+## Ready for this phase?
+
+- [ ] You have run the P2.1 flow end to end: `make up`, `make ssm`, serve a model, `make down` ([P2.1](../P2-serving-engines/P2.1-first-serve-with-vllm/README.md)).
+- [ ] Your budget alarm and idle auto-stop are in place, and you know what bills while an instance is "off" ([R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md)).
+- [ ] You can build and run a container, explain image layers, and read a Dockerfile ([P3.0](P3.0-containers-and-kubernetes-basics/README.md)).
+- [ ] You can explain a Pod, a Deployment and a Service, and apply a YAML file to a kind cluster with `kubectl` ([P3.0](P3.0-containers-and-kubernetes-basics/README.md)).
+- [ ] You have a working gateway or at least understand its job: auth, routing, rate limits ([P2.7](../P2-serving-engines/P2.7-gateway-basics/README.md)).
+- [ ] Docker and `kind` are installed on your laptop.
+
+**If not, go to:** [P3.0](P3.0-containers-and-kubernetes-basics/README.md) for containers and Kubernetes, [R.7](../R-readiness/R.7-cloud-account-and-cost-safety/README.md) for the account and cost safety, or [P2.1](../P2-serving-engines/P2.1-first-serve-with-vllm/README.md) for the stack lifecycle.
 
 **Thread through the phase:** turn P2's single-node server into a platform. Package it, run it on Kubernetes with GPUs, observe it, autoscale it on queue depth, load weights quickly, and isolate tenants, on AWS plus one second cloud. Projects #1, #13, #2, #3, #5 and #8 are all layers of `platform/`.
 
@@ -10,6 +21,7 @@ Pinned: GPU Operator `v26.7.1`, DCGM exporter `4.8.4`, k8s-device-plugin `v0.20.
 
 | Module | Time | Project | Animations |
 |---|---|---|---|
+| P3.0 Containers and Kubernetes from zero | 0.5 h + 5 h | — | — |
 | P3.1 GPU containers | 0.4 h + 7 h | (images used by #1) | — |
 | P3.2 Terraform on AWS | 0.5 h + 10 h | (`infra/aws/` single-node + EKS) | — |
 | P3.3 Kubernetes + NVIDIA GPU Operator | 0.5 h + 9 h | — | — |
@@ -21,6 +33,20 @@ Pinned: GPU Operator `v26.7.1`, DCGM exporter `4.8.4`, k8s-device-plugin `v0.20.
 | P3.9 Second cloud | 0.4 h + 7 h | (mirror of single-node + K8s) | — |
 
 ---
+
+## P3.0 — Containers and Kubernetes from zero
+
+**Tier T0 (Docker and kind on a laptop, no GPU).** Do this first if you have not used Docker or Kubernetes. If you can answer its checkpoints, skip to P3.1.
+
+**Objectives.** (1) Say why packaging the whole user space avoids "works on my machine". (2) Explain an image as stacked read-only layers and a container as a process with a writable layer on top. (3) Read and write a Dockerfile (`FROM`, `RUN`, `COPY`, `CMD`) and say why line order decides layer-cache hits. (4) Explain namespaces and cgroups in one sentence each, and why a container is not a VM. (5) Use `-p`, `-v` and `-e`. (6) Tell tags from digests, and pin by digest. (7) Explain Kubernetes as a desired-state loop: a controller reconciles actual state toward desired state. (8) Write Pods, Deployments and Services, and connect them with labels and selectors. (9) Use `kubectl apply/get/describe/logs` against a kind cluster. (10) Read requests and limits, and see that a GPU is "just another resource" (`nvidia.com/gpu: 1`), which P3.3 uses.
+
+**Simulator.** Layer cache: choose which Dockerfile line changed and see which layers rebuild, then reorder the file to show a cache miss.
+
+**Exercises.** (1) A beginner Dockerfile linter: unpinned `FROM`, `latest` tag, `COPY . .` before the dependency install, no `USER` (Python; P3.1's exercise 1 goes further) · (2) write `deployment.yaml` (Deployment and Service, 2 replicas, readiness probe, requests and limits) and have a test check the fields and the selectors (Python) · (3) kind walkthrough: create a cluster, apply the YAML, `kubectl get pods`, `port-forward`, `curl`, delete the cluster (Markdown, no test).
+
+**Sources.** Docker, Get started · Kubernetes basics tutorial · kind quick start. UNVERIFIED (see SOURCES.md section 4.1).
+
+**Go down when…** a Docker or `kubectl` command in P3.1 or P3.3 is unfamiliar. **Go up to:** P3.1, P3.3.
 
 ## P3.1 — GPU containers
 

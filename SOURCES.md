@@ -161,6 +161,40 @@ All of these hosts were **blocked by the egress policy** of the environment that
 
 **Papers** (arXiv blocked; IDs as given in the prompt, UNVERIFIED): PagedAttention 2309.06180 · SGLang 2312.07104 · Orca (OSDI '22) · SARATHI 2308.16369 · Sarathi-Serve 2403.02310 · DistServe 2401.09670 · Speculative decoding 2211.17192 · Medusa 2401.10774 · EAGLE 2401.15077 · AWQ 2306.00978 · GPTQ 2210.17323 · FP8 formats 2209.05433 · FlashAttention 2205.14135 · FA-2 2307.08691 · FA-3 2407.08608.
 
+### 4.1 Readiness and bridge resources
+
+Added with the Readiness phase (R.1 to R.7), P1.6 and P3.0. They are for learners who want a longer course than ours. We link them and never copy them. The build environment had no outbound internet, so every row is **UNVERIFIED** until it is opened in a browser. Titles and URLs come from the build plan, not from a visit.
+
+| Topic | Resource | URL | Status | Used by |
+|---|---|---|---|---|
+| C++ basics | learncpp.com (pointers, references, dynamic allocation, classes) | https://www.learncpp.com/ | **UNVERIFIED** | R.1, R.2 |
+| C++ reference | cppreference | https://en.cppreference.com/w/ | **UNVERIFIED** | R.1, R.2 |
+| Memory | CS50x, Week 4 "Memory" | https://cs50.harvard.edu/x/ | **UNVERIFIED** | R.2 |
+| Sanitizers | Clang AddressSanitizer docs | https://clang.llvm.org/docs/AddressSanitizer.html | **UNVERIFIED** | R.2 |
+| Terminal, shell, git | MIT, The Missing Semester of Your CS Education | https://missing.csail.mit.edu/ | **UNVERIFIED** | R.3 |
+| git | Pro Git (book) | https://git-scm.com/book/en/v2 | **UNVERIFIED** | R.3 |
+| CMake | Official CMake tutorial | https://cmake.org/cmake/help/latest/guide/tutorial/index.html | **UNVERIFIED** | R.3 |
+| Python | The Python tutorial | https://docs.python.org/3/tutorial/ | **UNVERIFIED** | R.4 |
+| NumPy | NumPy: the absolute basics for beginners | https://numpy.org/doc/stable/user/absolute_beginners.html | **UNVERIFIED** | R.4 |
+| Linear algebra | 3Blue1Brown, Essence of linear algebra | https://www.3blue1brown.com/topics/linear-algebra | **UNVERIFIED** | R.5 |
+| Neural networks | 3Blue1Brown, Neural networks | https://www.3blue1brown.com/topics/neural-networks | **UNVERIFIED** | R.5 |
+| Neural networks (code) | Karpathy, Neural Networks: Zero to Hero | https://karpathy.ai/zero-to-hero.html | **UNVERIFIED** | R.5 |
+| HTTP | MDN, An overview of HTTP | https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview | **UNVERIFIED** | R.6 |
+| SSE | MDN, Using server-sent events | https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events | **UNVERIFIED** | R.6 |
+| AWS budgets | AWS Budgets user guide | https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html | **UNVERIFIED** | R.7 |
+| AWS sign-in | IAM Identity Center user guide | https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html | **UNVERIFIED** | R.7 |
+| AWS access | Systems Manager Session Manager | https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html | **UNVERIFIED** | R.7 |
+| Terraform | HashiCorp, Get started with Terraform on AWS | https://developer.hashicorp.com/terraform/tutorials/aws-get-started | **UNVERIFIED** | R.7 |
+| Docker | Docker, Get started | https://docs.docker.com/get-started/ | **UNVERIFIED** | P3.0 |
+| Kubernetes | Kubernetes basics tutorial | https://kubernetes.io/docs/tutorials/kubernetes-basics/ | **UNVERIFIED** | P3.0 |
+| kind | kind quick start | https://kind.sigs.k8s.io/docs/user/quick-start/ | **UNVERIFIED** | P3.0 |
+| CUDA intro | NVIDIA blog, An Even Easier Introduction to CUDA | https://developer.nvidia.com/blog/even-easier-introduction-cuda/ | **UNVERIFIED** | P1.6 |
+| CUDA reference | CUDA C++ Programming Guide | https://docs.nvidia.com/cuda/cuda-c-programming-guide/ | **UNVERIFIED** | P1.6 |
+| CUDA debugging | Compute Sanitizer docs | https://docs.nvidia.com/compute-sanitizer/ | **UNVERIFIED** | P1.6 |
+| No-GPU warm-up | srush/GPU-Puzzles | https://github.com/srush/GPU-Puzzles | **UNVERIFIED** as a site (the repo is VERIFIED at the pinned SHA in section 1) | P1.6, Lane B L0 |
+| Free notebook GPU | Google Colab | https://colab.research.google.com/ | **UNVERIFIED** | P1.6 |
+| Browser GPU | LeetGPU (problems are CC BY-NC-ND 4.0: link only) | https://leetgpu.com/ | **UNVERIFIED** | P1.6, Lane B |
+
 ## 5. Books (summarized and assigned by chapter, never copied; UNVERIFIED editions)
 
 CS:APP (ch 5, 6, 9) · OSTEP (free) · Algorithms for Modern Hardware (free) · C++ Concurrency in Action 2e · PMPP 4e · Designing Data-Intensive Applications · Kubernetes Up & Running · Terraform Up & Running · AI Engineering (Huyen) · Google SRE books.

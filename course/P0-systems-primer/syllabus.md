@@ -2,6 +2,17 @@
 
 **Weeks 1–3 · Lane A ≈ 33 h · Tier T0 (laptop, Linux/macOS, x86 or ARM) · Lane B: L1 runs alongside (3–4 problems/week)**
 
+## Ready for this phase?
+
+- [ ] You can write a loop and a function in some language, and you remember school maths.
+- [ ] You can say what a pointer is, what `sizeof(double)` is, and why `a[i]` is `*(a + i)` ([R.1](../R-readiness/R.1-cpp-from-zero/README.md) checkpoints).
+- [ ] You can explain the stack and the heap, name the three classic heap bugs, and read an AddressSanitizer report ([R.2](../R-readiness/R.2-memory-management/README.md) checkpoints).
+- [ ] You can use a shell with pipes, run `git status/add/commit`, and configure, build and test a CMake project ([R.3](../R-readiness/R.3-terminal-git-build/README.md) checkpoints).
+- [ ] You have `g++` or `clang++` 11 or newer and CMake 3.20 or newer installed.
+- [ ] For P0.5, you can read a short NumPy script ([R.4](../R-readiness/R.4-python-and-numpy/README.md)). You can leave this one until P0.5.
+
+**If not, go to:** the [15-minute self-check](../R-readiness/README.md), then the R module that matches the item you missed.
+
 **Why this phase comes first:** every later layer, from vLLM's block manager to a CUDA kernel, depends on four ideas: memory layout, virtual memory, threads, and caches/SIMD. P0 teaches them on the CPU, where you can see and measure everything. It ends with a working CPU inference engine (#0 v0), which later becomes the GPU engine (#0 v1, P6.7).
 
 | Module | Time (read + hands-on) | Project / drill | Animations |

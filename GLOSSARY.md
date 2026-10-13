@@ -4,6 +4,39 @@ Each term is defined once, in one line. It is introduced in the module shown in 
 
 | Term | Definition |
 |---|---|
+| Object file | The compiler's output for one source file: machine code with unresolved references to other files. [R.1] |
+| Linker | The tool that joins object files and libraries into one executable by resolving those references. [R.1] |
+| Pointer | A variable that holds a memory address; its type says how many bytes `p + 1` steps. [R.1] |
+| Reference (C++) | An alias for an existing object. It cannot be null or re-seated. [R.1] |
+| Undefined behaviour | Code the language gives no meaning to (out-of-bounds read, uninitialised use); the compiler may do anything. [R.1] |
+| Stack frame | The block of stack memory holding one function call's locals; freed automatically on return. [R.2] |
+| Heap | Memory you allocate and free yourself (`new`/`delete`, `malloc`/`free`); its lifetime is up to you. [R.2] |
+| Dangling pointer | A pointer to memory that has been freed or has gone out of scope. [R.2] |
+| Memory leak | Heap memory that is never freed after its last use. [R.2] |
+| Use-after-free | Reading or writing a heap block after it has been freed. [R.2] |
+| RAII | Resource Acquisition Is Initialization: acquire in the constructor, release in the destructor, so cleanup follows scope. [R.2] |
+| AddressSanitizer (ASan) | A compiler option (`-fsanitize=address`) that checks memory accesses at run time and reports overflows and use-after-free. [R.2] |
+| `std::unique_ptr` | A smart pointer that is the sole owner of a heap object, frees it on destruction and can only be moved. [R.2] |
+| Exit code | The small integer a program returns to the shell (`$?`); zero means success. [R.3] |
+| Pipe | `a \| b`: connects the output of one process to the input of the next. [R.3] |
+| Environment variable | A named string a process inherits from its parent, such as `S2S_SOLUTIONS=1`. [R.3] |
+| Staging area (index) | Where `git add` collects changes that the next commit will record. [R.3] |
+| ndarray | NumPy's array: a typed flat buffer plus a shape and strides. [R.4] |
+| dtype | The element type of an array (float32, float16, int8); it sets the bytes per element. [R.4] |
+| Stride | The number of bytes to step to reach the next element along an axis. [R.4] |
+| View (NumPy) | An array that shares another array's memory, such as a slice or a transpose. [R.4] |
+| Broadcasting | NumPy's rule for combining shapes: align them from the right and stretch size-1 dimensions. [R.4] |
+| Logit | A raw, unnormalised score the model gives each vocabulary entry. [R.5] |
+| Softmax | Turns scores into probabilities: exp of each, divided by the sum. The stable form subtracts the max first. [R.5] |
+| Temperature | A divisor applied to logits before softmax; below 1 sharpens the distribution, above 1 flattens it. [R.5] |
+| Token id | The integer index of a token in the vocabulary. [R.5] |
+| HTTP status code | The three-digit result of a request: 2xx success, 4xx client error, 5xx server error. [R.6] |
+| SSE (server-sent events) | A one-way stream over HTTP where the server sends `data: …` events, each ended by a blank line. [R.6] |
+| Idempotent | An operation that has the same effect if repeated, so retrying it is safe. [R.6] |
+| IAM Identity Center | AWS's single sign-on service: short-lived logins for people, instead of long-lived access keys. [R.7] |
+| Budget alarm | A cost threshold on the account that sends an alert, such as an AWS Budgets email. [R.7] |
+| Session Manager (SSM) | AWS access to an instance's shell through the AWS API, with no inbound SSH port. [R.7] |
+| Terraform state | Terraform's record of the resources it created; `plan` compares it with your files. [R.7] |
 | Arithmetic intensity | FLOPs performed per byte moved to or from memory; the x-axis of a roofline. [P0.4] |
 | Roofline | A plot of attainable FLOP/s vs arithmetic intensity, capped by the memory-bandwidth slope and the compute peak. [P0.4] |
 | Ridge point | The arithmetic intensity where the bandwidth slope meets the compute peak (peak FLOP/s ÷ bandwidth). [P0.4] |
@@ -19,6 +52,12 @@ Each term is defined once, in one line. It is introduced in the module shown in 
 | ITL | Inter-token latency: time between consecutive output tokens of one request. [P1.3] |
 | TPOT | Time per output token: (end-to-end latency − TTFT) ÷ (output tokens − 1). [P1.3] |
 | Goodput | Throughput counting only requests that met the SLO. [P1.3] |
+| Host and device | In CUDA, the CPU with its RAM (host) and the GPU with its memory (device), joined by PCIe. [P1.6] |
+| `nvcc` | NVIDIA's CUDA compiler driver: sends host code to the C++ compiler and device code to PTX/SASS. [P1.6] |
+| Compute capability | A version number (such as 7.5, passed as `-arch=sm_75`) naming the features a GPU supports. [P1.6] |
+| Kernel launch | `kernel<<<grid, block>>>(args)`: starts a grid of blocks of threads; it returns before the kernel finishes. [P1.6] |
+| `cudaMemcpy` | Copies bytes between host and device memory; its direction flag says which way. [P1.6] |
+| compute-sanitizer | NVIDIA's tool that runs a CUDA program and reports out-of-bounds and misaligned memory accesses. [P1.6] |
 | Continuous batching | Re-forming the batch at every decode step so finished requests leave and new ones join immediately. [P2.3] |
 | Chunked prefill | Splitting a long prefill into chunks scheduled alongside decodes, so decodes are not stalled. [P2.3] |
 | PagedAttention | Storing the KV cache in fixed-size blocks addressed through a per-sequence block table. [P2.3] |
@@ -35,6 +74,14 @@ Each term is defined once, in one line. It is introduced in the module shown in 
 | Bank conflict | Two threads of a warp hitting different addresses in the same shared-memory bank, which serializes the access. [P5.2] |
 | Online softmax | Softmax computed in one pass by updating a running max and a rescaled running sum. [P5.5] |
 | Radix tree (prefix cache) | A compressed trie over token IDs whose nodes own KV cache entries, used for longest-prefix reuse. [P6.4] |
+| Image layer | One read-only step of a container image; layers are cached and shared, and a changed layer invalidates those after it. [P3.0] |
+| Container | A process started from an image, isolated by namespaces and limited by cgroups, with a writable layer on top. [P3.0] |
+| cgroup | A Linux kernel feature that limits and accounts the CPU, memory and other resources of a group of processes. [P3.0] |
+| Image digest | A content hash (`sha256:…`) that names one exact image; unlike a tag, it cannot move. [P3.0] |
+| Reconciliation loop | A controller repeatedly comparing desired state with actual state and acting to close the gap. [P3.0] |
+| Pod | Kubernetes' smallest unit: one or more containers that share a network and are scheduled together. [P3.0] |
+| Deployment | A Kubernetes object that keeps a set number of identical Pod replicas running and rolls out updates. [P3.0] |
+| Service (Kubernetes) | A stable name and address that routes traffic to the Pods matching a label selector. [P3.0] |
 | KEDA | Kubernetes Event-driven Autoscaling: scales a Deployment on external metrics such as queue depth, including to zero. [P3.6] |
 | Karpenter | A Kubernetes node autoscaler that launches right-sized (and spot) instances for pending pods. [P3.6] |
 | Cold start | Time from scaling a replica up to serving its first request: node launch, image pull, weight load, warm-up. [P3.6] |

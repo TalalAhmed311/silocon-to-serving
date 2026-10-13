@@ -17,6 +17,7 @@ The build sandbox's egress policy denied these hosts. Re-run `python tools/check
 | docs.aws.amazon.com, aws.amazon.com | instance specs and **prices** | check each instance in §5 (`g4dn.xlarge`, `g5.xlarge`, `g6.xlarge`, `g6e`, a 4×L4 `g6.12xlarge`-class instance, `p4d.24xlarge`, `p5`) in the learner's region |
 | docs.vllm.ai, docs.sglang.ai, docs.ray.io, keda.sh, karpenter.sh, triton-lang.org | rendered docs | the repo `docs/` folders at the pinned SHAs were used instead; spot-check the rendered pages |
 | kipp.ly, siboehm.com, horace.io, en.algorithmica.org, huggingface.co/spaces, jax-ml.github.io, sre.google, opentelemetry.io, prometheus.io, grafana.com, pytorch.org, intel.com, arm.com, agner.org, brendangregg.com, learncpp.com, csapp.cs.cmu.edu, pages.cs.wisc.edu, cloud.google.com, modal.com, docs.lambda.ai, docs.coreweave.com | articles, books, docs | open each link once |
+| learncpp.com, cs50.harvard.edu, clang.llvm.org, missing.csail.mit.edu, git-scm.com, cmake.org, docs.python.org, numpy.org, 3blue1brown.com, karpathy.ai, developer.mozilla.org, developer.hashicorp.com, docs.docker.com, kubernetes.io, kind.sigs.k8s.io, developer.nvidia.com, colab.research.google.com | the Readiness, P1.6 and P3.0 "go further" links, all UNVERIFIED in [SOURCES.md](SOURCES.md) section 4.1 | open each link once and record the date; confirm the title still matches |
 
 ## B. Decisions and facts
 
